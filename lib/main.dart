@@ -8,6 +8,7 @@ import 'services/settings_service.dart';
 import 'services/randomizer_service.dart';
 import 'widgets/preview_section.dart';
 import 'widgets/folder_section.dart';
+import 'widgets/wallpaper_controls.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -193,22 +194,6 @@ void initState() {
               ),
             ),
 
-            ElevatedButton(
-              onPressed: wallpaperFiles.isEmpty ? null : pickRandomWallpaper,
-              child: const Text('Next Wallpaper'),
-            ),
-
-            const SizedBox(height: 8),
-
-            ElevatedButton(
-              onPressed: selectedImagePath.isEmpty
-                  ? null
-                  : () {
-                      WallpaperService.setWindowsWallpaper(selectedImagePath);
-                    },
-              child: const Text('Set Windows Wallpaper'),
-            ),
-
             const Text(
               'Rotation interval',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -249,13 +234,16 @@ void initState() {
 
             const Spacer(),
 
-            ElevatedButton(
-              onPressed: wallpaperFiles.isEmpty
-                  ? null
-                  : rotationEnabled
-                      ? stopRotation
-                      : startRotation,
-              child: Text(rotationEnabled ? 'Stop Rotation' : 'Start Rotation'),
+            WallpaperControls(
+              hasWallpapers: wallpaperFiles.isNotEmpty,
+              hasSelectedImage: selectedImagePath.isNotEmpty,
+              rotationEnabled: rotationEnabled,
+              onNextWallpaper: pickRandomWallpaper,
+              onSetWallpaper: () {
+                WallpaperService.setWindowsWallpaper(selectedImagePath);
+              },
+              onStartRotation: startRotation,
+              onStopRotation: stopRotation,
             ),
           ],
         ),
