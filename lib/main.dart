@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -96,6 +97,7 @@ void startRotation() {
 
   setState(() {
     rotationEnabled = true;
+    saveSettings();
   });
 
   rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
@@ -107,18 +109,67 @@ void startRotation() {
   });
 }
 
-@override
-void dispose() {
-  rotationTimer?.cancel();
-  super.dispose();
-}
-
 void stopRotation() {
   rotationTimer?.cancel();
 
   setState(() {
     rotationEnabled = false;
+    saveSettings();
   });
+}
+
+void scanFolder(String folderPath) {
+  final directory = Directory(folderPath);
+
+  final imageFiles = directory
+      .listSync(recursive: true)
+      .where((file) =>
+          file.path.toLowerCase().endsWith('.jpg') ||
+          file.path.toLowerCase().endsWith('.jpeg') ||
+          file.path.toLowerCase().endsWith('.png') ||
+          file.path.toLowerCase().endsWith('.webp'))
+      .toList();
+
+  setState(() {
+    selectedFolder = folderPath;
+    imageCount = imageFiles.length;
+    wallpaperFiles = imageFiles;
+  });
+
+  pickRandomWallpaper();
+}
+
+Future<void> saveSettings() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  await prefs.setString('selectedFolder', selectedFolder);
+  await prefs.setString('interval', interval);
+  await prefs.setBool('rotationEnabled', rotationEnabled);
+}
+
+Future<void> loadSettings() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final savedFolder = prefs.getString('selectedFolder');
+  final savedInterval = prefs.getString('interval');
+  final savedRotationEnabled = prefs.getBool('rotationEnabled') ?? false;
+
+  if (savedFolder == null) return;
+
+  setState(() {
+    interval = savedInterval ?? '15 mintutes';
+  });
+
+  scanFolder(savedFolder);
+  if (savedRotationEnabled) {
+    startRotation();
+  }
+}
+
+@override
+void dispose() {
+  rotationTimer?.cancel();
+  super.dispose();
 }
 
 void pickRandomWallpaper() {
@@ -138,6 +189,12 @@ void pickRandomWallpaper() {
     selectedImage = randomImage;
     lastImagePath = randomImage;
   });
+}
+
+@override
+void initState() {
+  super.initState();
+  loadSettings();
 }
 
   @override
@@ -212,6 +269,7 @@ void pickRandomWallpaper() {
                 });
 
                 pickRandomWallpaper();
+                saveSettings();
               },
               child: const Text('Select Folder'),
             ),
@@ -256,6 +314,7 @@ void pickRandomWallpaper() {
                 setState(() {
                   interval = value;
                 });
+                saveSettings();
               },
             ),
 
