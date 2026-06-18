@@ -4,9 +4,9 @@ import 'dart:io';
 import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'services/wallpaper_service.dart';
 import 'services/scanner_service.dart';
+import 'services/settings_service.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -108,27 +108,28 @@ void scanFolder(String folderPath) {
 }
 
 Future<void> saveSettings() async {
-  final prefs = await SharedPreferences.getInstance();
-
-  await prefs.setString('selectedFolder', selectedFolder);
-  await prefs.setString('interval', interval);
-  await prefs.setBool('rotationEnabled', rotationEnabled);
+  await SettingsService.saveSettings(
+    selectedFolder: selectedFolder,
+    interval: interval,
+    rotationEnabled: rotationEnabled,
+  );
 }
 
 Future<void> loadSettings() async {
-  final prefs = await SharedPreferences.getInstance();
+  final settings = await SettingsService.loadSettings();
 
-  final savedFolder = prefs.getString('selectedFolder');
-  final savedInterval = prefs.getString('interval');
-  final savedRotationEnabled = prefs.getBool('rotationEnabled') ?? false;
+  final savedFolder = settings['selectedFolder'] as String?;
+  final savedInterval = settings['interval'] as String?;
+  final savedRotationEnabled = settings['rotationEnabled'] as bool;
 
   if (savedFolder == null) return;
 
   setState(() {
-    interval = savedInterval ?? '15 mintutes';
+    interval = savedInterval ?? '1 hour';
   });
 
   scanFolder(savedFolder);
+
   if (savedRotationEnabled) {
     startRotation();
   }
