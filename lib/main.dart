@@ -113,6 +113,14 @@ void dispose() {
   super.dispose();
 }
 
+void stopRotation() {
+  rotationTimer?.cancel();
+
+  setState(() {
+    rotationEnabled = false;
+  });
+}
+
 void pickRandomWallpaper() {
   if (wallpaperFiles.isEmpty) return;
 
@@ -266,8 +274,12 @@ void pickRandomWallpaper() {
             const Spacer(),
 
             ElevatedButton(
-              onPressed: wallpaperFiles.isEmpty ? null : startRotation,
-              child: const Text('Start Rotation'),
+              onPressed: wallpaperFiles.isEmpty
+                  ? null
+                  : rotationEnabled
+                      ? stopRotation
+                      : startRotation,
+              child: Text(rotationEnabled ? 'Stop Rotation' : 'Start Rotation'),
             ),
           ],
         ),
