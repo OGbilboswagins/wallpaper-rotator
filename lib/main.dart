@@ -3,36 +3,12 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:path/path.dart' as p;
-import 'dart:ffi';
-import 'package:ffi/ffi.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/wallpaper_service.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
-}
-
-void setWindowsWallpaper(String imagePath) {
-  const int spiSetDeskWallpaper = 20;
-  const int spifUpdateIniFile = 0x01;
-  const int spifSendChange = 0x02;
-
-  final user32 = DynamicLibrary.open('user32.dll');
-
-  final systemParametersInfo = user32.lookupFunction<
-      Int32 Function(Uint32, Uint32, Pointer<Utf16>, Uint32),
-      int Function(int, int, Pointer<Utf16>, int)>('SystemParametersInfoW');
-
-  final pathPointer = imagePath.toNativeUtf16();
-
-  systemParametersInfo(
-    spiSetDeskWallpaper,
-    0,
-    pathPointer,
-    spifUpdateIniFile | spifSendChange,
-  );
-
-  calloc.free(pathPointer);
 }
 
 class WallpaperRotatorApp extends StatelessWidget {
@@ -104,7 +80,7 @@ void startRotation() {
     pickRandomWallpaper();
 
     if (selectedImagePath.isNotEmpty) {
-      setWindowsWallpaper(selectedImagePath);
+      WallpaperService.setWindowsWallpaper(selectedImagePath);
     }
   });
 }
@@ -287,7 +263,7 @@ void initState() {
               onPressed: selectedImagePath.isEmpty
                   ? null
                   : () {
-                      setWindowsWallpaper(selectedImagePath);
+                      WallpaperService.setWindowsWallpaper(selectedImagePath);
                     },
               child: const Text('Set Windows Wallpaper'),
             ),
