@@ -7,6 +7,7 @@ import 'services/scanner_service.dart';
 import 'services/settings_service.dart';
 import 'services/randomizer_service.dart';
 import 'widgets/preview_section.dart';
+import 'widgets/folder_section.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -173,20 +174,17 @@ void initState() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Wallpaper folder',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(selectedFolder),
+            FolderSection(
+              selectedFolder: selectedFolder,
+              imageCount: imageCount,
+              onSelectFolder: () async {
+                final folderPath = await FilePicker.platform.getDirectoryPath();
 
-            const SizedBox(height: 8),
+                if (folderPath == null) return;
 
-            Text(
-              'Images Found: $imageCount',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+                scanFolder(folderPath);
+                saveSettings();
+              },
             ),
 
             Expanded(
@@ -194,20 +192,6 @@ void initState() {
                 selectedImagePath: selectedImagePath,
               ),
             ),
-
-            ElevatedButton(
-              onPressed: () async {
-                final folderPath = await FilePicker.platform.getDirectoryPath();
-
-                if (folderPath == null) return;
-
-              scanFolder(folderPath);
-              saveSettings();
-              },
-              child: const Text('Select Folder'),
-            ),
-
-            const SizedBox(height: 30),
 
             ElevatedButton(
               onPressed: wallpaperFiles.isEmpty ? null : pickRandomWallpaper,
