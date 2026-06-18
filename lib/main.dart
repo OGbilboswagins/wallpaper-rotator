@@ -3,11 +3,34 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:path/path.dart' as p;
-
-
+import 'dart:ffi';
+import 'package:ffi/ffi.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
+}
+
+void setWindowsWallpaper(String imagePath) {
+  const int spiSetDeskWallpaper = 20;
+  const int spifUpdateIniFile = 0x01;
+  const int spifSendChange = 0x02;
+
+  final user32 = DynamicLibrary.open('user32.dll');
+
+  final systemParametersInfo = user32.lookupFunction<
+      Int32 Function(Uint32, Uint32, Pointer<Utf16>, Uint32),
+      int Function(int, int, Pointer<Utf16>, int)>('SystemParametersInfoW');
+
+  final pathPointer = imagePath.toNativeUtf16();
+
+  systemParametersInfo(
+    spiSetDeskWallpaper,
+    0,
+    pathPointer,
+    spifUpdateIniFile | spifSendChange,
+  );
+
+  calloc.free(pathPointer);
 }
 
 class WallpaperRotatorApp extends StatelessWidget {
@@ -36,9 +59,30 @@ class _HomePageState extends State<HomePage> {
   String selectedFolder = 'No folder selected';
   String interval = '1 hour';
   bool rotationEnabled = false;
-  String selectedImage = 'No image selected';
   int imageCount = 0;
+  String selectedImage = 'No image selected';
   String selectedImagePath = '';
+  List<FileSystemEntity> wallpaperFiles = [];
+  String lastImagePath = '';
+
+void pickRandomWallpaper() {
+  if (wallpaperFiles.isEmpty) return;
+
+  final random = Random();
+  String randomImage = wallpaperFiles[random.nextInt(wallpaperFiles.length)].path;
+
+  if (wallpaperFiles.length > 1) {
+    while (randomImage == lastImagePath) {
+      randomImage = wallpaperFiles[random.nextInt(wallpaperFiles.length)].path;
+    }
+  }
+
+  setState(() {
+    selectedImagePath = randomImage;
+    selectedImage = randomImage;
+    lastImagePath = randomImage;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +141,7 @@ class _HomePageState extends State<HomePage> {
                 final directory = Directory(folderPath);
 
                 final imageFiles = directory
-                    .listSync()
+                    .listSync(recursive: true)
                     .where((file) =>
                         file.path.toLowerCase().endsWith('.jpg') ||
                         file.path.toLowerCase().endsWith('.jpeg') ||
@@ -105,21 +149,34 @@ class _HomePageState extends State<HomePage> {
                         file.path.toLowerCase().endsWith('.webp'))
                     .toList();
 
-                final random = Random();
-                final randomImage = imageFiles.isNotEmpty
-                    ? imageFiles[random.nextInt(imageFiles.length)].path
-                    : 'No images found';
-
                 setState(() {
                   selectedFolder = folderPath;
                   imageCount = imageFiles.length;
-                  selectedImagePath = randomImage;
+                  wallpaperFiles = imageFiles;
                 });
+
+                pickRandomWallpaper();
               },
               child: const Text('Select Folder'),
             ),
 
             const SizedBox(height: 30),
+
+            ElevatedButton(
+              onPressed: wallpaperFiles.isEmpty ? null : pickRandomWallpaper,
+              child: const Text('Next Wallpaper'),
+            ),
+
+            const SizedBox(height: 8),
+
+            ElevatedButton(
+              onPressed: selectedImagePath.isEmpty
+                  ? null
+                  : () {
+                      setWindowsWallpaper(selectedImagePath);
+                    },
+              child: const Text('Set Windows Wallpaper'),
+            ),
 
             const Text(
               'Rotation interval',
