@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/wallpaper_service.dart';
+import 'services/scanner_service.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -95,16 +96,7 @@ void stopRotation() {
 }
 
 void scanFolder(String folderPath) {
-  final directory = Directory(folderPath);
-
-  final imageFiles = directory
-      .listSync(recursive: true)
-      .where((file) =>
-          file.path.toLowerCase().endsWith('.jpg') ||
-          file.path.toLowerCase().endsWith('.jpeg') ||
-          file.path.toLowerCase().endsWith('.png') ||
-          file.path.toLowerCase().endsWith('.webp'))
-      .toList();
+  final imageFiles = ScannerService.scanImages(folderPath);
 
   setState(() {
     selectedFolder = folderPath;
@@ -227,25 +219,8 @@ void initState() {
 
                 if (folderPath == null) return;
 
-                final directory = Directory(folderPath);
-
-                final imageFiles = directory
-                    .listSync(recursive: true)
-                    .where((file) =>
-                        file.path.toLowerCase().endsWith('.jpg') ||
-                        file.path.toLowerCase().endsWith('.jpeg') ||
-                        file.path.toLowerCase().endsWith('.png') ||
-                        file.path.toLowerCase().endsWith('.webp'))
-                    .toList();
-
-                setState(() {
-                  selectedFolder = folderPath;
-                  imageCount = imageFiles.length;
-                  wallpaperFiles = imageFiles;
-                });
-
-                pickRandomWallpaper();
-                saveSettings();
+              scanFolder(folderPath);
+              saveSettings();
               },
               child: const Text('Select Folder'),
             ),
