@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'dart:async';
 import 'services/wallpaper_service.dart';
 import 'services/scanner_service.dart';
 import 'services/settings_service.dart';
+import 'services/randomizer_service.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -142,16 +142,12 @@ void dispose() {
 }
 
 void pickRandomWallpaper() {
-  if (wallpaperFiles.isEmpty) return;
+  final randomImage = RandomizerService.pickRandomWallpaper(
+    wallpaperFiles,
+    lastImagePath,
+  );
 
-  final random = Random();
-  String randomImage = wallpaperFiles[random.nextInt(wallpaperFiles.length)].path;
-
-  if (wallpaperFiles.length > 1) {
-    while (randomImage == lastImagePath) {
-      randomImage = wallpaperFiles[random.nextInt(wallpaperFiles.length)].path;
-    }
-  }
+  if (randomImage.isEmpty) return;
 
   setState(() {
     selectedImagePath = randomImage;
