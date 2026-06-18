@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:path/path.dart' as p;
 import 'dart:async';
 import 'services/wallpaper_service.dart';
 import 'services/scanner_service.dart';
 import 'services/settings_service.dart';
 import 'services/randomizer_service.dart';
+import 'widgets/preview_section.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -189,25 +189,10 @@ void initState() {
               ),
             ),
 
-            if (selectedImagePath.isNotEmpty)
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 20),
-                  decoration: BoxDecoration(
-                    border: Border.all(),
-                  ),
-                  child: Image.file(
-                    File(selectedImagePath),
-                    fit: BoxFit.contain,
-                  ),
-                ),
+            Expanded(
+              child: PreviewSection(
+                selectedImagePath: selectedImagePath,
               ),
-
-            const SizedBox(height: 8),
-
-//            Text('Selected Image: $selectedImage'),
-            Text(
-              'Selected Image: ${p.basename(selectedImagePath)}',
             ),
 
             ElevatedButton(
