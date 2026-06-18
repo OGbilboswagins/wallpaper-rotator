@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:path/path.dart' as p;
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
+import 'dart:async';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -64,6 +65,53 @@ class _HomePageState extends State<HomePage> {
   String selectedImagePath = '';
   List<FileSystemEntity> wallpaperFiles = [];
   String lastImagePath = '';
+  Timer? rotationTimer;
+  Duration getIntervalDuration() {
+    switch (interval) {
+      case '10 seconds':
+        return const Duration(seconds: 10);
+      case '30 seconds':
+        return const Duration(seconds: 30);
+      case '1 minute':
+        return const Duration(minutes: 1);
+      case '15 minutes':
+        return const Duration(minutes: 15);
+      case '30 minutes':
+        return const Duration(minutes: 30);
+      case '1 hour':
+        return const Duration(hours: 1);
+      case '4 hours':
+        return const Duration(hours: 4);
+      case 'Daily':
+        return const Duration(days: 1);
+      default:
+        return const Duration(hours: 1);
+    }
+  }
+
+void startRotation() {
+  if (wallpaperFiles.isEmpty) return;
+
+  rotationTimer?.cancel();
+
+  setState(() {
+    rotationEnabled = true;
+  });
+
+  rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
+    pickRandomWallpaper();
+
+    if (selectedImagePath.isNotEmpty) {
+      setWindowsWallpaper(selectedImagePath);
+    }
+  });
+}
+
+@override
+void dispose() {
+  rotationTimer?.cancel();
+  super.dispose();
+}
 
 void pickRandomWallpaper() {
   if (wallpaperFiles.isEmpty) return;
@@ -186,6 +234,9 @@ void pickRandomWallpaper() {
             DropdownButton<String>(
               value: interval,
               items: const [
+                DropdownMenuItem(value: '10 seconds', child: Text('10 seconds')),
+                DropdownMenuItem(value: '30 seconds', child: Text('30 seconds')),
+                DropdownMenuItem(value: '1 minute', child: Text('1 minute')),
                 DropdownMenuItem(value: '15 minutes', child: Text('15 minutes')),
                 DropdownMenuItem(value: '30 minutes', child: Text('30 minutes')),
                 DropdownMenuItem(value: '1 hour', child: Text('1 hour')),
@@ -215,11 +266,7 @@ void pickRandomWallpaper() {
             const Spacer(),
 
             ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  rotationEnabled = true;
-                });
-              },
+              onPressed: wallpaperFiles.isEmpty ? null : startRotation,
               child: const Text('Start Rotation'),
             ),
           ],
