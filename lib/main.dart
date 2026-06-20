@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import 'dart:async';
 import 'services/wallpaper_service.dart';
 import 'services/scanner_service.dart';
@@ -9,6 +8,8 @@ import 'services/randomizer_service.dart';
 import 'widgets/preview_section.dart';
 import 'widgets/folder_section.dart';
 import 'widgets/wallpaper_controls.dart';
+import 'widgets/rotation_settings.dart';
+import 'models/wallpaper_target.dart';
 
 void main() {
   runApp(const WallpaperRotatorApp());
@@ -37,15 +38,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String selectedFolder = 'No folder selected';
   String interval = '1 hour';
   bool rotationEnabled = false;
-  int imageCount = 0;
-  String selectedImage = 'No image selected';
-  String selectedImagePath = '';
-  List<FileSystemEntity> wallpaperFiles = [];
-  String lastImagePath = '';
   Timer? rotationTimer;
+  List<WallpaperTarget> targets = [
+    WallpaperTarget(name: 'Monitor 1'),
+  ];
+  
   Duration getIntervalDuration() {
     switch (interval) {
       case '10 seconds':
@@ -70,20 +69,21 @@ class _HomePageState extends State<HomePage> {
   }
 
 void startRotation() {
-  if (wallpaperFiles.isEmpty) return;
+  if (targets[0].files.isEmpty) return;
 
   rotationTimer?.cancel();
 
   setState(() {
     rotationEnabled = true;
-    saveSettings();
   });
 
-  rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
-    pickRandomWallpaper();
+  saveSettings();
 
-    if (selectedImagePath.isNotEmpty) {
-      WallpaperService.setWindowsWallpaper(selectedImagePath);
+  rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
+    pickRandomWallpaperForTarget(0);
+
+    if (targets[0].selectedImagePath.isNotEmpty) {
+      WallpaperService.setWindowsWallpaper(targets[0].selectedImagePath);
     }
   });
 }
@@ -93,25 +93,25 @@ void stopRotation() {
 
   setState(() {
     rotationEnabled = false;
-    saveSettings();
   });
+
+  saveSettings();
 }
 
-void scanFolder(String folderPath) {
+void scanFolderForTarget(int targetIndex, String folderPath) {
   final imageFiles = ScannerService.scanImages(folderPath);
 
   setState(() {
-    selectedFolder = folderPath;
-    imageCount = imageFiles.length;
-    wallpaperFiles = imageFiles;
+    targets[targetIndex].folderPath = folderPath;
+    targets[targetIndex].files = imageFiles;
   });
 
-  pickRandomWallpaper();
+  pickRandomWallpaperForTarget(targetIndex);
 }
 
 Future<void> saveSettings() async {
   await SettingsService.saveSettings(
-    selectedFolder: selectedFolder,
+    selectedFolder: targets[0].folderPath,
     interval: interval,
     rotationEnabled: rotationEnabled,
   );
@@ -130,7 +130,7 @@ Future<void> loadSettings() async {
     interval = savedInterval ?? '1 hour';
   });
 
-  scanFolder(savedFolder);
+  scanFolderForTarget(0, savedFolder);
 
   if (savedRotationEnabled) {
     startRotation();
@@ -143,18 +143,19 @@ void dispose() {
   super.dispose();
 }
 
-void pickRandomWallpaper() {
+void pickRandomWallpaperForTarget(int targetIndex) {
+  final target = targets[targetIndex];
+
   final randomImage = RandomizerService.pickRandomWallpaper(
-    wallpaperFiles,
-    lastImagePath,
+    target.files,
+    target.lastImagePath,
   );
 
   if (randomImage.isEmpty) return;
 
   setState(() {
-    selectedImagePath = randomImage;
-    selectedImage = randomImage;
-    lastImagePath = randomImage;
+    target.selectedImagePath = randomImage;
+    target.lastImagePath = randomImage;
   });
 }
 
@@ -176,56 +177,39 @@ void initState() {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             FolderSection(
-              selectedFolder: selectedFolder,
-              imageCount: imageCount,
+              selectedFolder: targets[0].folderPath.isEmpty
+                  ? 'No folder selected'
+                  : targets[0].folderPath,
+              imageCount: targets[0].files.length,
               onSelectFolder: () async {
                 final folderPath = await FilePicker.platform.getDirectoryPath();
 
                 if (folderPath == null) return;
 
-                scanFolder(folderPath);
+                scanFolderForTarget(0, folderPath);
                 saveSettings();
               },
             ),
 
             Expanded(
               child: PreviewSection(
-                selectedImagePath: selectedImagePath,
+                selectedImagePath: targets[0].selectedImagePath,
               ),
             ),
 
-            const Text(
-              'Rotation interval',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-
-            DropdownButton<String>(
-              value: interval,
-              items: const [
-                DropdownMenuItem(value: '10 seconds', child: Text('10 seconds')),
-                DropdownMenuItem(value: '30 seconds', child: Text('30 seconds')),
-                DropdownMenuItem(value: '1 minute', child: Text('1 minute')),
-                DropdownMenuItem(value: '15 minutes', child: Text('15 minutes')),
-                DropdownMenuItem(value: '30 minutes', child: Text('30 minutes')),
-                DropdownMenuItem(value: '1 hour', child: Text('1 hour')),
-                DropdownMenuItem(value: '4 hours', child: Text('4 hours')),
-                DropdownMenuItem(value: 'Daily', child: Text('Daily')),
-              ],
-              onChanged: (value) {
+            RotationSettings(
+              interval: interval,
+              rotationEnabled: rotationEnabled,
+              onIntervalChanged: (value) {
                 if (value == null) return;
+
                 setState(() {
                   interval = value;
                 });
+
                 saveSettings();
               },
-            ),
-
-            const SizedBox(height: 30),
-
-            SwitchListTile(
-              title: const Text('Rotation enabled'),
-              value: rotationEnabled,
-              onChanged: (value) {
+              onRotationChanged: (value) {
                 setState(() {
                   rotationEnabled = value;
                 });
@@ -235,12 +219,14 @@ void initState() {
             const Spacer(),
 
             WallpaperControls(
-              hasWallpapers: wallpaperFiles.isNotEmpty,
-              hasSelectedImage: selectedImagePath.isNotEmpty,
+              hasWallpapers: targets[0].files.isNotEmpty,
+              hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
               rotationEnabled: rotationEnabled,
-              onNextWallpaper: pickRandomWallpaper,
+              onNextWallpaper: () => pickRandomWallpaperForTarget(0),
               onSetWallpaper: () {
-                WallpaperService.setWindowsWallpaper(selectedImagePath);
+                WallpaperService.setWindowsWallpaper(
+                  targets[0].selectedImagePath,
+                );
               },
               onStartRotation: startRotation,
               onStopRotation: stopRotation,
