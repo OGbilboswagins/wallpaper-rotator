@@ -37,4 +37,44 @@ class WallpaperService {
 
     return getMonitorCount();
   }
+
+  static int _fitModeToInt(String fitMode) {
+    switch (fitMode) {
+      case 'Fill':
+        return 1;
+      case 'Stretch':
+        return 2;
+      case 'Center':
+        return 3;
+      case 'Fit':
+      default:
+        return 0;
+    }
+  }
+
+  static int applyMonitorWallpaper({
+    required int monitorIndex,
+    required String imagePath,
+    required String fitMode,
+  }) {
+    if (!Platform.isWindows) return -99;
+
+    final exe = DynamicLibrary.executable();
+
+    final applyMonitorWallpaper = exe.lookupFunction<
+        Int32 Function(Int32, Pointer<Utf16>, Int32),
+        int Function(int, Pointer<Utf16>, int)>('ApplyMonitorWallpaper');
+
+    final pathPointer = imagePath.toNativeUtf16();
+
+    final result = applyMonitorWallpaper(
+      monitorIndex,
+      pathPointer,
+      _fitModeToInt(fitMode),
+    );
+
+    calloc.free(pathPointer);
+
+    return result;
+  }
 }

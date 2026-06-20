@@ -5,8 +5,6 @@ class FolderSection extends StatelessWidget {
   final String selectedFolder;
   final int imageCount;
   final VoidCallback onSelectFolder;
-  final String fitMode;
-  final ValueChanged<String?> onFitModeChanged;
 
   const FolderSection({
     super.key,
@@ -14,8 +12,6 @@ class FolderSection extends StatelessWidget {
     required this.selectedFolder,
     required this.imageCount,
     required this.onSelectFolder,
-    required this.fitMode,
-    required this.onFitModeChanged,
   });
 
   @override
@@ -46,19 +42,6 @@ class FolderSection extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        DropdownButton<String>(
-          value: fitMode,
-          items: const [
-            DropdownMenuItem(value: 'Fit', child: Text('Fit')),
-            DropdownMenuItem(value: 'Fill', child: Text('Fill')),
-            DropdownMenuItem(value: 'Stretch', child: Text('Stretch')),
-            DropdownMenuItem(value: 'Center', child: Text('Center')),
-          ],
-          onChanged: onFitModeChanged,
         ),
 
         const SizedBox(height: 8),

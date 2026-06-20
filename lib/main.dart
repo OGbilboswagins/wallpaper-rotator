@@ -40,6 +40,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String interval = '1 hour';
   bool rotationEnabled = false;
+  String globalFitMode = 'Fit';
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
   
@@ -78,7 +79,7 @@ class _HomePageState extends State<HomePage> {
   }
 
 void startRotation() {
-  if (targets[0].files.isEmpty) return;
+  if (targets.isEmpty) return;
 
   rotationTimer?.cancel();
 
@@ -93,13 +94,16 @@ void startRotation() {
       if (targets[i].files.isEmpty) continue;
 
       pickRandomWallpaperForTarget(i);
-    }
 
-    // Temporary: still only applies target 0 to Windows
-    if (targets[0].selectedImagePath.isNotEmpty) {
-      WallpaperService.setWindowsWallpaper(
-        targets[0].selectedImagePath,
+      if (targets[i].selectedImagePath.isEmpty) continue;
+
+      final result = WallpaperService.applyMonitorWallpaper(
+        monitorIndex: i,
+        imagePath: targets[i].selectedImagePath,
+        fitMode: globalFitMode,
       );
+
+      debugPrint('Monitor $i result: $result');
     }
   });
 }
@@ -128,7 +132,7 @@ void scanFolderForTarget(int targetIndex, String folderPath) {
 Future<void> saveSettings() async {
   await SettingsService.saveSettings(
     targetFolders: targets.map((target) => target.folderPath).toList(),
-    targetFitModes: targets.map((target) => target.fitMode).toList(),
+    globalFitMode: globalFitMode,
     interval: interval,
     rotationEnabled: rotationEnabled,
   );
@@ -138,18 +142,13 @@ Future<void> loadSettings() async {
   final settings = await SettingsService.loadSettings();
 
   final savedFolders = settings['targetFolders'] as List<String>;
-  final savedFitModes = settings['targetFitModes'] as List<String>;
+  final savedGlobalFitMode = settings['globalFitMode'] as String;
   final savedInterval = settings['interval'] as String?;
   final savedRotationEnabled = settings['rotationEnabled'] as bool;
 
   setState(() {
     interval = savedInterval ?? '1 hour';
-
-    for (int i = 0; i < savedFitModes.length && i < targets.length; i++) {
-      if (savedFitModes[i].isNotEmpty) {
-        targets[i].fitMode = savedFitModes[i];
-      }
-    }
+    globalFitMode = savedGlobalFitMode;
   });
 
   for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
@@ -212,16 +211,6 @@ void initState() {
                     ? 'No folder selected'
                     : targets[i].folderPath,
                 imageCount: targets[i].files.length,
-                fitMode: targets[i].fitMode,
-                onFitModeChanged: (value) {
-                  if (value == null) return;
-
-                  setState(() {
-                    targets[i].fitMode = value;
-                  });
-
-                  saveSettings();
-                },
                 onSelectFolder: () async {
                   final folderPath = await FilePicker.platform.getDirectoryPath();
 
@@ -265,9 +254,17 @@ void initState() {
               rotationEnabled: rotationEnabled,
               onNextWallpaper: () => pickRandomWallpaperForTarget(0),
               onSetWallpaper: () {
-                WallpaperService.setWindowsWallpaper(
-                  targets[0].selectedImagePath,
-                );
+                for (int i = 0; i < targets.length; i++) {
+                  if (targets[i].selectedImagePath.isEmpty) continue;
+
+                  final result = WallpaperService.applyMonitorWallpaper(
+                    monitorIndex: i,
+                    imagePath: targets[i].selectedImagePath,
+                    fitMode: globalFitMode,
+                  );
+
+                  debugPrint('Monitor $i result: $result');
+                }
               },
               onStartRotation: startRotation,
               onStopRotation: stopRotation,
