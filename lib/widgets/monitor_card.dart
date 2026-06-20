@@ -21,61 +21,71 @@ class MonitorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          targetName,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 4),
-
-        const Text('Wallpaper folder'),
-
-        const SizedBox(height: 8),
-
-        Text(selectedFolder),
-
-        const SizedBox(height: 8),
-
-        Text(
-          'Images Found: $imageCount',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        ElevatedButton(
-          onPressed: onSelectFolder,
-          child: const Text('Select Folder'),
-        ),
-
-        if (selectedImagePath.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 20),
-            height: 200,
-            decoration: BoxDecoration(
-              border: Border.all(),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              targetName,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            child: Image.file(
-              File(selectedImagePath),
-              fit: BoxFit.contain,
+
+            const SizedBox(height: 8),
+
+            const Text('Wallpaper folder'),
+
+            const SizedBox(height: 8),
+
+            Text(selectedFolder),
+
+            const SizedBox(height: 8),
+
+            Text(
+              'Images Found: $imageCount',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
 
-        if (selectedImagePath.isNotEmpty)
-          Text(
-            'Selected Image: ${p.basename(selectedImagePath)}',
-          ),
+            const SizedBox(height: 12),
 
-        const SizedBox(height: 20),
-      ],
+            ElevatedButton(
+              onPressed: onSelectFolder,
+              child: const Text('Select Folder'),
+            ),
+
+            if (selectedImagePath.isNotEmpty) ...[
+              const SizedBox(height: 16),
+
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  border: Border.all(),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.file(
+                  File(selectedImagePath),
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                'Selected Image: ${p.basename(selectedImagePath)}',
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
