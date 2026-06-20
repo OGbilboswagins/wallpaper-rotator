@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
+import 'dart:io';
 
 class WallpaperService {
   static void setWindowsWallpaper(String imagePath) {
@@ -23,5 +24,17 @@ class WallpaperService {
     );
 
     calloc.free(pathPointer);
+  }
+
+  static int getWindowsMonitorCount() {
+    if (!Platform.isWindows) return 0;
+
+    final exe = DynamicLibrary.executable();
+
+    final getMonitorCount = exe.lookupFunction<
+        Int32 Function(),
+        int Function()>('GetMonitorCount');
+
+    return getMonitorCount();
   }
 }

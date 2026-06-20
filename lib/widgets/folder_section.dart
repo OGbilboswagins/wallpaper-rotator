@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 class FolderSection extends StatelessWidget {
+  final String targetName;
   final String selectedFolder;
   final int imageCount;
   final VoidCallback onSelectFolder;
 
   const FolderSection({
     super.key,
+    required this.targetName,
     required this.selectedFolder,
     required this.imageCount,
     required this.onSelectFolder,
@@ -17,11 +19,20 @@ class FolderSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Wallpaper folder',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Text(
+          targetName,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+
+        const SizedBox(height: 4),
+
+        const Text('Wallpaper folder'),
+
         const SizedBox(height: 8),
+
         Text(selectedFolder),
 
         const SizedBox(height: 8),

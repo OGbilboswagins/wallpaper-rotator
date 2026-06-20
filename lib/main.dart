@@ -41,10 +41,19 @@ class _HomePageState extends State<HomePage> {
   String interval = '1 hour';
   bool rotationEnabled = false;
   Timer? rotationTimer;
-  List<WallpaperTarget> targets = [
-    WallpaperTarget(name: 'Monitor 1'),
-  ];
+  List<WallpaperTarget> targets = [];
   
+  void initializeTargets() {
+  final monitorCount = WallpaperService.getWindowsMonitorCount();
+
+  setState(() {
+    targets = List.generate(
+      monitorCount == 0 ? 1 : monitorCount,
+      (index) => WallpaperTarget(name: 'Monitor ${index + 1}'),
+    );
+  });
+}
+
   Duration getIntervalDuration() {
     switch (interval) {
       case '10 seconds':
@@ -80,10 +89,17 @@ void startRotation() {
   saveSettings();
 
   rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
-    pickRandomWallpaperForTarget(0);
+    for (int i = 0; i < targets.length; i++) {
+      if (targets[i].files.isEmpty) continue;
 
+      pickRandomWallpaperForTarget(i);
+    }
+
+    // Temporary: still only applies target 0 to Windows
     if (targets[0].selectedImagePath.isNotEmpty) {
-      WallpaperService.setWindowsWallpaper(targets[0].selectedImagePath);
+      WallpaperService.setWindowsWallpaper(
+        targets[0].selectedImagePath,
+      );
     }
   });
 }
@@ -111,7 +127,7 @@ void scanFolderForTarget(int targetIndex, String folderPath) {
 
 Future<void> saveSettings() async {
   await SettingsService.saveSettings(
-    selectedFolder: targets[0].folderPath,
+    targetFolders: targets.map((target) => target.folderPath).toList(),
     interval: interval,
     rotationEnabled: rotationEnabled,
   );
@@ -120,17 +136,21 @@ Future<void> saveSettings() async {
 Future<void> loadSettings() async {
   final settings = await SettingsService.loadSettings();
 
-  final savedFolder = settings['selectedFolder'] as String?;
+  final savedFolders = settings['targetFolders'] as List<String>;
   final savedInterval = settings['interval'] as String?;
   final savedRotationEnabled = settings['rotationEnabled'] as bool;
-
-  if (savedFolder == null) return;
 
   setState(() {
     interval = savedInterval ?? '1 hour';
   });
 
-  scanFolderForTarget(0, savedFolder);
+  for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
+    final folder = savedFolders[i];
+
+    if (folder.isNotEmpty) {
+      scanFolderForTarget(i, folder);
+    }
+  }
 
   if (savedRotationEnabled) {
     startRotation();
@@ -162,6 +182,7 @@ void pickRandomWallpaperForTarget(int targetIndex) {
 @override
 void initState() {
   super.initState();
+  initializeTargets();
   loadSettings();
 }
 
@@ -176,20 +197,22 @@ void initState() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            FolderSection(
-              selectedFolder: targets[0].folderPath.isEmpty
-                  ? 'No folder selected'
-                  : targets[0].folderPath,
-              imageCount: targets[0].files.length,
-              onSelectFolder: () async {
-                final folderPath = await FilePicker.platform.getDirectoryPath();
+            for (int i = 0; i < targets.length; i++)
+              FolderSection(
+                targetName: targets[i].name,
+                selectedFolder: targets[i].folderPath.isEmpty
+                    ? 'No folder selected'
+                    : targets[i].folderPath,
+                imageCount: targets[i].files.length,
+                onSelectFolder: () async {
+                  final folderPath = await FilePicker.platform.getDirectoryPath();
 
-                if (folderPath == null) return;
+                  if (folderPath == null) return;
 
-                scanFolderForTarget(0, folderPath);
-                saveSettings();
-              },
-            ),
+                  scanFolderForTarget(i, folderPath);
+                  saveSettings();
+                },
+              ),
 
             Expanded(
               child: PreviewSection(
