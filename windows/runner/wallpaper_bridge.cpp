@@ -83,8 +83,8 @@ int ApplyMonitorWallpaper(int monitorIndex, const wchar_t* imagePath, int fitMod
         return -3;
     }
 
-// SetPosition is global, so do not set it per monitor here.
-// wallpaper->SetPosition(GetWallpaperPositionFromInt(fitMode));
+
+    wallpaper->SetPosition(GetWallpaperPositionFromInt(fitMode));
 
     hr = wallpaper->SetWallpaper(monitorId, imagePath);
 

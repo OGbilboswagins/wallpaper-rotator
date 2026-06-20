@@ -5,6 +5,8 @@ class RotationSettings extends StatelessWidget {
   final bool rotationEnabled;
   final ValueChanged<String?> onIntervalChanged;
   final ValueChanged<bool> onRotationChanged;
+  final String globalFitMode;
+  final ValueChanged<String?> onFitModeChanged;
 
   const RotationSettings({
     super.key,
@@ -12,6 +14,8 @@ class RotationSettings extends StatelessWidget {
     required this.rotationEnabled,
     required this.onIntervalChanged,
     required this.onRotationChanged,
+    required this.globalFitMode,
+    required this.onFitModeChanged,
   });
 
   @override
@@ -37,6 +41,27 @@ class RotationSettings extends StatelessWidget {
             DropdownMenuItem(value: 'Daily', child: Text('Daily')),
           ],
           onChanged: onIntervalChanged,
+        ),
+
+        const SizedBox(height: 16),
+
+        const Text(
+          'Wallpaper fit mode',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        DropdownButton<String>(
+          value: globalFitMode,
+          items: const [
+            DropdownMenuItem(value: 'Fit', child: Text('Fit')),
+            DropdownMenuItem(value: 'Fill', child: Text('Fill')),
+            DropdownMenuItem(value: 'Stretch', child: Text('Stretch')),
+            DropdownMenuItem(value: 'Center', child: Text('Center')),
+          ],
+          onChanged: onFitModeChanged,
         ),
 
         const SizedBox(height: 12),

@@ -230,6 +230,17 @@ void initState() {
             RotationSettings(
               interval: interval,
               rotationEnabled: rotationEnabled,
+              globalFitMode: globalFitMode,
+              onFitModeChanged: (value) {
+                if (value == null) return;
+
+                setState(() {
+                  globalFitMode = value;
+                });
+
+                saveSettings();
+              },
+
               onIntervalChanged: (value) {
                 if (value == null) return;
 
