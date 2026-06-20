@@ -5,8 +5,7 @@ import 'services/wallpaper_service.dart';
 import 'services/scanner_service.dart';
 import 'services/settings_service.dart';
 import 'services/randomizer_service.dart';
-import 'widgets/preview_section.dart';
-import 'widgets/folder_section.dart';
+import 'widgets/monitor_card.dart';
 import 'widgets/wallpaper_controls.dart';
 import 'widgets/rotation_settings.dart';
 import 'models/wallpaper_target.dart';
@@ -205,7 +204,7 @@ void initState() {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (int i = 0; i < targets.length; i++)
-              FolderSection(
+              MonitorCard(
                 targetName: targets[i].name,
                 selectedFolder: targets[i].folderPath.isEmpty
                     ? 'No folder selected'
@@ -219,13 +218,8 @@ void initState() {
                   scanFolderForTarget(i, folderPath);
                   saveSettings();
                 },
+                selectedImagePath: targets[i].selectedImagePath,
               ),
-
-            Expanded(
-              child: PreviewSection(
-                selectedImagePath: targets[0].selectedImagePath,
-              ),
-            ),
 
             RotationSettings(
               interval: interval,

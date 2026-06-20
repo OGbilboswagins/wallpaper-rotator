@@ -3,14 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-class FolderSection extends StatelessWidget {
+class MonitorCard extends StatelessWidget {
   final String targetName;
   final String selectedFolder;
   final int imageCount;
   final VoidCallback onSelectFolder;
   final String selectedImagePath;
 
-  const FolderSection({
+  const MonitorCard({
     super.key,
     required this.targetName,
     required this.selectedFolder,
