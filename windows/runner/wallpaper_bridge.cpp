@@ -1,6 +1,14 @@
 #include <windows.h>
 #include <shobjidl.h>
 #include <string>
+#include <vector>
+
+struct MonitorRect {
+    int left;
+    int top;
+    int right;
+    int bottom;
+};
 
 DESKTOP_WALLPAPER_POSITION GetWallpaperPositionFromInt(int fitMode) {
     switch (fitMode) {
@@ -14,6 +22,53 @@ DESKTOP_WALLPAPER_POSITION GetWallpaperPositionFromInt(int fitMode) {
         default:
             return DWPOS_FIT;
     }
+}
+
+BOOL CALLBACK MonitorEnumProc(
+    HMONITOR hMonitor,
+    HDC hdcMonitor,
+    LPRECT lprcMonitor,
+    LPARAM dwData
+) {
+    std::vector<MonitorRect>* monitors =
+        reinterpret_cast<std::vector<MonitorRect>*>(dwData);
+
+    MONITORINFO mi;
+    mi.cbSize = sizeof(MONITORINFO);
+
+    if (GetMonitorInfo(hMonitor, &mi)) {
+        monitors->push_back({
+            mi.rcMonitor.left,
+            mi.rcMonitor.top,
+            mi.rcMonitor.right,
+            mi.rcMonitor.bottom
+        });
+    }
+
+    return TRUE;
+}
+
+extern "C" __declspec(dllexport)
+int GetMonitorRect(int monitorIndex, int* rectOut) {
+    std::vector<MonitorRect> monitors;
+
+    EnumDisplayMonitors(
+        nullptr,
+        nullptr,
+        MonitorEnumProc,
+        reinterpret_cast<LPARAM>(&monitors)
+    );
+
+    if (monitorIndex < 0 || monitorIndex >= monitors.size()) {
+        return 0;
+    }
+
+    rectOut[0] = monitors[monitorIndex].left;
+    rectOut[1] = monitors[monitorIndex].top;
+    rectOut[2] = monitors[monitorIndex].right;
+    rectOut[3] = monitors[monitorIndex].bottom;
+
+    return 1;
 }
 
 extern "C" __declspec(dllexport)

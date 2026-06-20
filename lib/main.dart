@@ -198,9 +198,10 @@ void initState() {
       appBar: AppBar(
         title: const Text('VPP Wallpaper Rotator'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (int i = 0; i < targets.length; i++)
@@ -249,9 +250,7 @@ void initState() {
                   rotationEnabled = value;
                 });
               },
-            ),
-
-            const Spacer(),
+            ),          
 
             WallpaperControls(
               hasWallpapers: targets[0].files.isNotEmpty,
@@ -266,15 +265,16 @@ void initState() {
                     monitorIndex: i,
                     imagePath: targets[i].selectedImagePath,
                     fitMode: globalFitMode,
-                  );
+                    );
 
-                  debugPrint('Monitor $i result: $result');
-                }
-              },
-              onStartRotation: startRotation,
-              onStopRotation: stopRotation,
-            ),
-          ],
+                    debugPrint('Monitor $i result: $result');
+                  }
+                },
+                onStartRotation: startRotation,
+                onStopRotation: stopRotation,
+              ),
+            ],
+          ),
         ),
       ),
     );
