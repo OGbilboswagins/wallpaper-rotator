@@ -128,6 +128,7 @@ void scanFolderForTarget(int targetIndex, String folderPath) {
 Future<void> saveSettings() async {
   await SettingsService.saveSettings(
     targetFolders: targets.map((target) => target.folderPath).toList(),
+    targetFitModes: targets.map((target) => target.fitMode).toList(),
     interval: interval,
     rotationEnabled: rotationEnabled,
   );
@@ -137,11 +138,18 @@ Future<void> loadSettings() async {
   final settings = await SettingsService.loadSettings();
 
   final savedFolders = settings['targetFolders'] as List<String>;
+  final savedFitModes = settings['targetFitModes'] as List<String>;
   final savedInterval = settings['interval'] as String?;
   final savedRotationEnabled = settings['rotationEnabled'] as bool;
 
   setState(() {
     interval = savedInterval ?? '1 hour';
+
+    for (int i = 0; i < savedFitModes.length && i < targets.length; i++) {
+      if (savedFitModes[i].isNotEmpty) {
+        targets[i].fitMode = savedFitModes[i];
+      }
+    }
   });
 
   for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
@@ -204,6 +212,16 @@ void initState() {
                     ? 'No folder selected'
                     : targets[i].folderPath,
                 imageCount: targets[i].files.length,
+                fitMode: targets[i].fitMode,
+                onFitModeChanged: (value) {
+                  if (value == null) return;
+
+                  setState(() {
+                    targets[i].fitMode = value;
+                  });
+
+                  saveSettings();
+                },
                 onSelectFolder: () async {
                   final folderPath = await FilePicker.platform.getDirectoryPath();
 

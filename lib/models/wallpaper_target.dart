@@ -6,6 +6,7 @@ class WallpaperTarget {
   List<FileSystemEntity> files;
   String selectedImagePath;
   String lastImagePath;
+  String fitMode;
 
   WallpaperTarget({
     required this.name,
@@ -13,5 +14,6 @@ class WallpaperTarget {
     this.files = const [],
     this.selectedImagePath = '',
     this.lastImagePath = '',
+    this.fitMode = 'Fit',
   });
 }
