@@ -11,6 +11,7 @@ import 'widgets/rotation_settings.dart';
 import 'models/wallpaper_target.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,14 +54,48 @@ class _HomePageState extends State<HomePage> with WindowListener {
   Future<void> initSystemTray() async {
     await systemTray.initSystemTray(
       iconPath: 'assets/icons/tray_icon_dark.ico',
+      toolTip: 'Wallpaper Rotator',
     );
 
     systemTray.registerSystemTrayEventHandler((eventName) async {
+      debugPrint('Tray event: $eventName');
+
       if (eventName == kSystemTrayEventClick) {
         await windowManager.show();
         await windowManager.focus();
+      } else if (eventName == kSystemTrayEventRightClick) {
+        await systemTray.popUpContextMenu();
       }
     });
+
+    final menu = Menu();
+
+    await menu.buildFrom([
+      MenuItemLabel(
+        label: 'Show App',
+        onClicked: (menuItem) async {
+          await windowManager.show();
+          await windowManager.focus();
+        },
+      ),
+      MenuItemLabel(
+        label: 'Next Wallpaper',
+        onClicked: (menuItem) {
+          nextWallpaperAllMonitors();
+        },
+      ),
+      MenuSeparator(),
+      MenuItemLabel(
+        label: 'Quit',
+        onClicked: (menuItem) async {
+          rotationTimer?.cancel();
+          await systemTray.destroy();
+          exit(0);
+        },
+      ),
+    ]);
+
+    await systemTray.setContextMenu(menu);
   }
 
   @override
@@ -130,6 +165,24 @@ void startRotation() {
       debugPrint('Monitor $i result: $result');
     }
   });
+}
+
+void nextWallpaperAllMonitors() {
+  for (int i = 0; i < targets.length; i++) {
+    if (targets[i].files.isEmpty) continue;
+
+    pickRandomWallpaperForTarget(i);
+
+    if (targets[i].selectedImagePath.isEmpty) continue;
+
+    final result = WallpaperService.applyMonitorWallpaper(
+      monitorIndex: i,
+      imagePath: targets[i].selectedImagePath,
+      fitMode: globalFitMode,
+    );
+
+    debugPrint('Monitor $i result: $result');
+  }
 }
 
 void stopRotation() {
