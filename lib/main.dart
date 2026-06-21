@@ -15,6 +15,7 @@ import 'package:window_manager/window_manager.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
+  await windowManager.setPreventClose(true);
 
   runApp(const WallpaperRotatorApp());
 }
@@ -41,13 +42,32 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WindowListener {
   String interval = '1 hour';
   bool rotationEnabled = false;
   String globalFitMode = 'Fit';
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
+  final SystemTray systemTray = SystemTray();
   
+  Future<void> initSystemTray() async {
+    await systemTray.initSystemTray(
+      iconPath: 'assets/icons/tray_icon_dark.ico',
+    );
+
+    systemTray.registerSystemTrayEventHandler((eventName) async {
+      if (eventName == kSystemTrayEventClick) {
+        await windowManager.show();
+        await windowManager.focus();
+      }
+    });
+  }
+
+  @override
+  void onWindowClose() async {
+    await windowManager.hide();
+  }
+
   void initializeTargets() {
   final monitorCount = WallpaperService.getWindowsMonitorCount();
 
@@ -170,6 +190,7 @@ Future<void> loadSettings() async {
 
 @override
 void dispose() {
+  windowManager.removeListener(this);
   rotationTimer?.cancel();
   super.dispose();
 }
@@ -193,8 +214,10 @@ void pickRandomWallpaperForTarget(int targetIndex) {
 @override
 void initState() {
   super.initState();
+  windowManager.addListener(this);
   initializeTargets();
   loadSettings();
+  initSystemTray();
 }
 
   @override
