@@ -9,8 +9,13 @@ import 'widgets/monitor_card.dart';
 import 'widgets/wallpaper_controls.dart';
 import 'widgets/rotation_settings.dart';
 import 'models/wallpaper_target.dart';
+import 'package:system_tray/system_tray.dart';
+import 'package:window_manager/window_manager.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
   runApp(const WallpaperRotatorApp());
 }
 
