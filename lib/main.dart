@@ -14,6 +14,7 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'services/entitlement_service.dart';
 import 'services/startup_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +57,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
   final SystemTray systemTray = SystemTray();
-  
+
   Future<void> initSystemTray() async {
     await systemTray.initSystemTray(
       iconPath: 'assets/icons/tray_icon_dark.ico',
@@ -131,12 +132,10 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
   void initializeTargets() {
     if (Platform.isAndroid) {
-      targets = [
-        WallpaperTarget(name: 'Home Screen'),
-      ];
+      targets = [WallpaperTarget(name: 'Home Screen')];
       return;
     }
-    
+
     final monitorCount = WallpaperService.getWindowsMonitorCount();
 
     final detectedCount = monitorCount == 0 ? 1 : monitorCount;
@@ -156,18 +155,37 @@ class _HomePageState extends State<HomePage> with WindowListener {
     return EntitlementService.durationFromLabel(interval);
   }
 
-void startRotation() {
-  if (targets.isEmpty) return;
+  void startRotation() {
+    if (targets.isEmpty) return;
 
-  rotationTimer?.cancel();
+    rotationTimer?.cancel();
 
-  setState(() {
-    rotationEnabled = true;
-  });
+    setState(() {
+      rotationEnabled = true;
+    });
 
-  saveSettings();
+    saveSettings();
 
-  rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
+    rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
+      for (int i = 0; i < targets.length; i++) {
+        if (targets[i].files.isEmpty) continue;
+
+        pickRandomWallpaperForTarget(i);
+
+        if (targets[i].selectedImagePath.isEmpty) continue;
+
+        final result = WallpaperService.applyMonitorWallpaper(
+          monitorIndex: i,
+          imagePath: targets[i].selectedImagePath,
+          fitMode: globalFitMode,
+        );
+
+        debugPrint('Monitor $i result: $result');
+      }
+    });
+  }
+
+  void nextWallpaperAllMonitors() {
     for (int i = 0; i < targets.length; i++) {
       if (targets[i].files.isEmpty) continue;
 
@@ -183,221 +201,225 @@ void startRotation() {
 
       debugPrint('Monitor $i result: $result');
     }
-  });
-}
-
-void nextWallpaperAllMonitors() {
-  for (int i = 0; i < targets.length; i++) {
-    if (targets[i].files.isEmpty) continue;
-
-    pickRandomWallpaperForTarget(i);
-
-    if (targets[i].selectedImagePath.isEmpty) continue;
-
-    final result = WallpaperService.applyMonitorWallpaper(
-      monitorIndex: i,
-      imagePath: targets[i].selectedImagePath,
-      fitMode: globalFitMode,
-    );
-
-    debugPrint('Monitor $i result: $result');
   }
-}
 
-void stopRotation() {
-  rotationTimer?.cancel();
+  void stopRotation() {
+    rotationTimer?.cancel();
 
-  setState(() {
-    rotationEnabled = false;
-  });
+    setState(() {
+      rotationEnabled = false;
+    });
 
-  saveSettings();
-}
+    saveSettings();
+  }
 
-void scanFolderForTarget(int targetIndex, String folderPath) {
-  final imageFiles = ScannerService.scanImages(folderPath);
+  Future<bool> ensureAndroidImagePermission() async {
+    if (!Platform.isAndroid) {
+      return true;
+    }
 
-  setState(() {
-    targets[targetIndex].folderPath = folderPath;
-    targets[targetIndex].files = imageFiles;
-  });
+    final status = await Permission.photos.request();
 
-  pickRandomWallpaperForTarget(targetIndex);
-}
+    if (status.isGranted || status.isLimited) {
+      return true;
+    }
 
-Future<void> saveSettings() async {
-  await SettingsService.saveSettings(
-    targetFolders: targets.map((target) => target.folderPath).toList(),
-    globalFitMode: globalFitMode,
-    interval: interval,
-    rotationEnabled: rotationEnabled,
-  );
-}
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+    }
 
-Future<void> loadSettings() async {
-  final settings = await SettingsService.loadSettings();
+    return false;
+  }
 
-  final savedFolders = settings['targetFolders'] as List<String>;
-  final savedGlobalFitMode = settings['globalFitMode'] as String;
-  final savedInterval = settings['interval'] as String?;
-  final savedRotationEnabled = settings['rotationEnabled'] as bool;
+  void scanFolderForTarget(int targetIndex, String folderPath) {
+    final imageFiles = ScannerService.scanImages(folderPath);
 
-  setState(() {
-    interval = EntitlementService.normalizeInterval(savedInterval ?? '4 hours');
-    globalFitMode = savedGlobalFitMode;
-  });
+    setState(() {
+      targets[targetIndex].folderPath = folderPath;
+      targets[targetIndex].files = imageFiles;
+    });
 
-  for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
-    final folder = savedFolders[i];
+    pickRandomWallpaperForTarget(targetIndex);
+  }
 
-    if (folder.isNotEmpty) {
-      scanFolderForTarget(i, folder);
+  Future<void> saveSettings() async {
+    await SettingsService.saveSettings(
+      targetFolders: targets.map((target) => target.folderPath).toList(),
+      globalFitMode: globalFitMode,
+      interval: interval,
+      rotationEnabled: rotationEnabled,
+    );
+  }
+
+  Future<void> loadSettings() async {
+    final settings = await SettingsService.loadSettings();
+
+    final savedFolders = settings['targetFolders'] as List<String>;
+    final savedGlobalFitMode = settings['globalFitMode'] as String;
+    final savedInterval = settings['interval'] as String?;
+    final savedRotationEnabled = settings['rotationEnabled'] as bool;
+
+    setState(() {
+      interval = EntitlementService.normalizeInterval(
+        savedInterval ?? '4 hours',
+      );
+      globalFitMode = savedGlobalFitMode;
+    });
+
+    for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
+      final folder = savedFolders[i];
+
+      if (folder.isNotEmpty) {
+        scanFolderForTarget(i, folder);
+      }
+    }
+
+    if (savedRotationEnabled) {
+      startRotation();
     }
   }
 
-  if (savedRotationEnabled) {
-    startRotation();
-  }
-}
+  @override
+  void dispose() {
+    rotationTimer?.cancel();
 
-@override
-void dispose() {
-  rotationTimer?.cancel();
+    if (Platform.isWindows) {
+      windowManager.removeListener(this);
+    }
 
-  if (Platform.isWindows) {
-    windowManager.removeListener(this);
+    super.dispose();
   }
 
-  super.dispose();
-}
+  void pickRandomWallpaperForTarget(int targetIndex) {
+    final target = targets[targetIndex];
 
-void pickRandomWallpaperForTarget(int targetIndex) {
-  final target = targets[targetIndex];
+    final randomImage = RandomizerService.pickRandomWallpaper(
+      target.files,
+      target.lastImagePath,
+    );
 
-  final randomImage = RandomizerService.pickRandomWallpaper(
-    target.files,
-    target.lastImagePath,
-  );
+    if (randomImage.isEmpty) return;
 
-  if (randomImage.isEmpty) return;
-
-  setState(() {
-    target.selectedImagePath = randomImage;
-    target.lastImagePath = randomImage;
-  });
-}
-
-@override
-void initState() {
-  super.initState();
-
-  initializeTargets();
-  loadSettings();
-
-  if (Platform.isWindows) {
-    windowManager.addListener(this);
-
-    StartupService.isStartupEnabled().then((enabled) {
-      if (!mounted) return;
-      setState(() {
-        launchOnStartup = enabled;
-      });
+    setState(() {
+      target.selectedImagePath = randomImage;
+      target.lastImagePath = randomImage;
     });
-
-    initSystemTray();
   }
-}
+
+  @override
+  void initState() {
+    super.initState();
+
+    initializeTargets();
+    loadSettings();
+
+    if (Platform.isWindows) {
+      windowManager.addListener(this);
+
+      StartupService.isStartupEnabled().then((enabled) {
+        if (!mounted) return;
+        setState(() {
+          launchOnStartup = enabled;
+        });
+      });
+
+      initSystemTray();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('VPP Wallpaper Rotator'),
-      ),
+      appBar: AppBar(title: const Text('VPP Wallpaper Rotator')),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (int i = 0; i < targets.length; i++)
-              MonitorCard(
-                targetName: targets[i].name,
-                selectedFolder: targets[i].folderPath.isEmpty
-                    ? 'No folder selected'
-                    : targets[i].folderPath,
-                imageCount: targets[i].files.length,
-                onSelectFolder: () async {
-                  final folderPath = await FilePicker.platform.getDirectoryPath();
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < targets.length; i++)
+                MonitorCard(
+                  targetName: targets[i].name,
+                  selectedFolder: targets[i].folderPath.isEmpty
+                      ? 'No folder selected'
+                      : targets[i].folderPath,
+                  imageCount: targets[i].files.length,
+                  onSelectFolder: () async {
+                    final folderPath = await FilePicker.platform
+                        .getDirectoryPath();
 
-                  if (folderPath == null) return;
+                    if (folderPath == null) return;
 
-                  scanFolderForTarget(i, folderPath);
+                    final hasPermission = await ensureAndroidImagePermission();
+
+                    if (!hasPermission) return;
+
+                    scanFolderForTarget(i, folderPath);
+                    saveSettings();
+                  },
+                  selectedImagePath: targets[i].selectedImagePath,
+                ),
+
+              RotationSettings(
+                launchOnStartup: launchOnStartup,
+                onStartupChanged: (value) async {
+                  if (value) {
+                    await StartupService.enableStartup();
+                  } else {
+                    await StartupService.disableStartup();
+                  }
+
+                  setState(() {
+                    launchOnStartup = value;
+                  });
+                },
+
+                interval: interval,
+                allowedIntervals: EntitlementService.allowedIntervals,
+                onIntervalChanged: (value) {
+                  if (value == null) return;
+
+                  setState(() {
+                    interval = EntitlementService.normalizeInterval(value);
+                  });
+
                   saveSettings();
                 },
-                selectedImagePath: targets[i].selectedImagePath,
+
+                rotationEnabled: rotationEnabled,
+                onRotationChanged: (value) {
+                  if (value) {
+                    startRotation();
+                  } else {
+                    stopRotation();
+                  }
+                },
+
+                globalFitMode: globalFitMode,
+                onFitModeChanged: (value) {
+                  if (value == null) return;
+
+                  setState(() {
+                    globalFitMode = value;
+                  });
+
+                  saveSettings();
+                },
               ),
 
-            RotationSettings(
-              launchOnStartup: launchOnStartup,
-              onStartupChanged: (value) async {
-                if (value) {
-                  await StartupService.enableStartup();
-                } else {
-                  await StartupService.disableStartup();
-                }
+              WallpaperControls(
+                hasWallpapers: targets[0].files.isNotEmpty,
+                hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
+                rotationEnabled: rotationEnabled,
+                onNextWallpaper: () => pickRandomWallpaperForTarget(0),
+                onSetWallpaper: () {
+                  for (int i = 0; i < targets.length; i++) {
+                    if (targets[i].selectedImagePath.isEmpty) continue;
 
-                setState(() {
-                  launchOnStartup = value;
-                });
-              },
-
-              interval: interval,
-              allowedIntervals: EntitlementService.allowedIntervals,
-              onIntervalChanged: (value) {
-                if (value == null) return;
-
-                setState(() {
-                  interval = EntitlementService.normalizeInterval(value);
-                });
-
-                saveSettings();
-              },
-              
-              rotationEnabled: rotationEnabled,
-              onRotationChanged: (value) {
-                if (value) {
-                  startRotation();
-                } else {
-                  stopRotation();
-                }
-              },
-
-              globalFitMode: globalFitMode,
-              onFitModeChanged: (value) {
-                if (value == null) return;
-
-                setState(() {
-                  globalFitMode = value;
-                });
-
-                saveSettings();
-              },
-            ),          
-
-            WallpaperControls(
-              hasWallpapers: targets[0].files.isNotEmpty,
-              hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
-              rotationEnabled: rotationEnabled,
-              onNextWallpaper: () => pickRandomWallpaperForTarget(0),
-              onSetWallpaper: () {
-                for (int i = 0; i < targets.length; i++) {
-                  if (targets[i].selectedImagePath.isEmpty) continue;
-
-                  final result = WallpaperService.applyMonitorWallpaper(
-                    monitorIndex: i,
-                    imagePath: targets[i].selectedImagePath,
-                    fitMode: globalFitMode,
+                    final result = WallpaperService.applyMonitorWallpaper(
+                      monitorIndex: i,
+                      imagePath: targets[i].selectedImagePath,
+                      fitMode: globalFitMode,
                     );
 
                     debugPrint('Monitor $i result: $result');
