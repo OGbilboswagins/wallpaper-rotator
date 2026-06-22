@@ -88,8 +88,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
       MenuItemLabel(
         label: 'Next Wallpaper',
-        onClicked: (menuItem) {
-          nextWallpaperAllMonitors();
+        onClicked: (menuItem) async {
+          await nextWallpaperAllMonitors();
         },
       ),
 
@@ -166,7 +166,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     saveSettings();
 
-    rotationTimer = Timer.periodic(getIntervalDuration(), (timer) {
+    rotationTimer = Timer.periodic(getIntervalDuration(), (timer) async {
       for (int i = 0; i < targets.length; i++) {
         if (targets[i].files.isEmpty) continue;
 
@@ -174,7 +174,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
         if (targets[i].selectedImagePath.isEmpty) continue;
 
-        final result = WallpaperService.applyMonitorWallpaper(
+        final result = await WallpaperService.applyWallpaper(
           monitorIndex: i,
           imagePath: targets[i].selectedImagePath,
           fitMode: globalFitMode,
@@ -185,7 +185,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     });
   }
 
-  void nextWallpaperAllMonitors() {
+  Future<void> nextWallpaperAllMonitors() async {
     for (int i = 0; i < targets.length; i++) {
       if (targets[i].files.isEmpty) continue;
 
@@ -193,7 +193,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
       if (targets[i].selectedImagePath.isEmpty) continue;
 
-      final result = WallpaperService.applyMonitorWallpaper(
+      final result = await WallpaperService.applyWallpaper(
         monitorIndex: i,
         imagePath: targets[i].selectedImagePath,
         fitMode: globalFitMode,
@@ -412,17 +412,17 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
                 rotationEnabled: rotationEnabled,
                 onNextWallpaper: () => pickRandomWallpaperForTarget(0),
-                onSetWallpaper: () {
+                onSetWallpaper: () async {
                   for (int i = 0; i < targets.length; i++) {
                     if (targets[i].selectedImagePath.isEmpty) continue;
 
-                    final result = WallpaperService.applyMonitorWallpaper(
+                    final result = await WallpaperService.applyWallpaper(
                       monitorIndex: i,
                       imagePath: targets[i].selectedImagePath,
                       fitMode: globalFitMode,
                     );
 
-                    debugPrint('Monitor $i result: $result');
+                    debugPrint('Target $i result: $result');
                   }
                 },
                 onStartRotation: startRotation,

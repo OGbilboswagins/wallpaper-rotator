@@ -1,9 +1,16 @@
 import 'dart:ffi';
-import 'package:ffi/ffi.dart';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
+import 'package:flutter/services.dart';
+
 class WallpaperService {
+  static const MethodChannel _androidWallpaperChannel =
+      MethodChannel('vpp_wallpaper_rotator/wallpaper');
+
   static void setWindowsWallpaper(String imagePath) {
+    if (!Platform.isWindows) return;
+
     const int spiSetDeskWallpaper = 20;
     const int spifUpdateIniFile = 0x01;
     const int spifSendChange = 0x02;
@@ -31,9 +38,9 @@ class WallpaperService {
 
     final exe = DynamicLibrary.executable();
 
-    final getMonitorCount = exe.lookupFunction<
-        Int32 Function(),
-        int Function()>('GetMonitorCount');
+    final getMonitorCount = exe.lookupFunction<Int32 Function(), int Function()>(
+      'GetMonitorCount',
+    );
 
     return getMonitorCount();
   }
@@ -76,5 +83,34 @@ class WallpaperService {
     calloc.free(pathPointer);
 
     return result;
+  }
+
+  static Future<String> applyWallpaper({
+    required int monitorIndex,
+    required String imagePath,
+    required String fitMode,
+  }) async {
+    if (Platform.isAndroid) {
+      final result = await _androidWallpaperChannel.invokeMethod<String>(
+        'setHomeWallpaper',
+        {
+          'path': imagePath,
+        },
+      );
+
+      return result ?? 'Android wallpaper set';
+    }
+
+    if (Platform.isWindows) {
+      final result = applyMonitorWallpaper(
+        monitorIndex: monitorIndex,
+        imagePath: imagePath,
+        fitMode: fitMode,
+      );
+
+      return 'Windows wallpaper result: $result';
+    }
+
+    return 'Unsupported platform';
   }
 }
