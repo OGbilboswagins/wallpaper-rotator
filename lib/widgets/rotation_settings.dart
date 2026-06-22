@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class RotationSettings extends StatelessWidget {
   final String interval;
+  final List<String> allowedIntervals;
   final bool rotationEnabled;
   final ValueChanged<String?> onIntervalChanged;
   final ValueChanged<bool> onRotationChanged;
@@ -11,6 +12,7 @@ class RotationSettings extends StatelessWidget {
   const RotationSettings({
     super.key,
     required this.interval,
+    required this.allowedIntervals,
     required this.rotationEnabled,
     required this.onIntervalChanged,
     required this.onRotationChanged,
@@ -30,16 +32,14 @@ class RotationSettings extends StatelessWidget {
 
         DropdownButton<String>(
           value: interval,
-          items: const [
-            DropdownMenuItem(value: '10 seconds', child: Text('10 seconds')),
-            DropdownMenuItem(value: '30 seconds', child: Text('30 seconds')),
-            DropdownMenuItem(value: '1 minute', child: Text('1 minute')),
-            DropdownMenuItem(value: '15 minutes', child: Text('15 minutes')),
-            DropdownMenuItem(value: '30 minutes', child: Text('30 minutes')),
-            DropdownMenuItem(value: '1 hour', child: Text('1 hour')),
-            DropdownMenuItem(value: '4 hours', child: Text('4 hours')),
-            DropdownMenuItem(value: 'Daily', child: Text('Daily')),
-          ],
+          items: allowedIntervals
+              .map(
+                (interval) => DropdownMenuItem(
+                  value: interval,
+                  child: Text(interval),
+                ),
+              )
+              .toList(),
           onChanged: onIntervalChanged,
         ),
 

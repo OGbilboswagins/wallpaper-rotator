@@ -12,6 +12,7 @@ import 'models/wallpaper_target.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
+import 'services/entitlement_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +45,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with WindowListener {
-  String interval = '1 hour';
+  String interval = '4 hours';
   bool rotationEnabled = false;
   String globalFitMode = 'Fit';
   Timer? rotationTimer;
@@ -78,12 +79,32 @@ class _HomePageState extends State<HomePage> with WindowListener {
           await windowManager.focus();
         },
       ),
+
       MenuItemLabel(
         label: 'Next Wallpaper',
         onClicked: (menuItem) {
           nextWallpaperAllMonitors();
         },
       ),
+
+      MenuItemLabel(
+        label: 'Start Rotation',
+        onClicked: (menuItem) {
+          if (!rotationEnabled) {
+            startRotation();
+          }
+        },
+      ),
+
+      MenuItemLabel(
+        label: 'Stop Rotation',
+        onClicked: (menuItem) {
+          if (rotationEnabled) {
+            stopRotation();
+          }
+        },
+      ),
+
       MenuSeparator(),
       MenuItemLabel(
         label: 'Quit',
@@ -104,37 +125,23 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   void initializeTargets() {
-  final monitorCount = WallpaperService.getWindowsMonitorCount();
+    final monitorCount = WallpaperService.getWindowsMonitorCount();
 
-  setState(() {
-    targets = List.generate(
-      monitorCount == 0 ? 1 : monitorCount,
-      (index) => WallpaperTarget(name: 'Monitor ${index + 1}'),
-    );
-  });
-}
+    final detectedCount = monitorCount == 0 ? 1 : monitorCount;
+    final allowedCount = detectedCount > EntitlementService.maxTargets
+        ? EntitlementService.maxTargets
+        : detectedCount;
+
+    setState(() {
+      targets = List.generate(
+        allowedCount,
+        (index) => WallpaperTarget(name: 'Monitor ${index + 1}'),
+      );
+    });
+  }
 
   Duration getIntervalDuration() {
-    switch (interval) {
-      case '10 seconds':
-        return const Duration(seconds: 10);
-      case '30 seconds':
-        return const Duration(seconds: 30);
-      case '1 minute':
-        return const Duration(minutes: 1);
-      case '15 minutes':
-        return const Duration(minutes: 15);
-      case '30 minutes':
-        return const Duration(minutes: 30);
-      case '1 hour':
-        return const Duration(hours: 1);
-      case '4 hours':
-        return const Duration(hours: 4);
-      case 'Daily':
-        return const Duration(days: 1);
-      default:
-        return const Duration(hours: 1);
-    }
+    return EntitlementService.durationFromLabel(interval);
   }
 
 void startRotation() {
@@ -224,7 +231,7 @@ Future<void> loadSettings() async {
   final savedRotationEnabled = settings['rotationEnabled'] as bool;
 
   setState(() {
-    interval = savedInterval ?? '1 hour';
+    interval = EntitlementService.normalizeInterval(savedInterval ?? '4 hours');
     globalFitMode = savedGlobalFitMode;
   });
 
@@ -305,6 +312,7 @@ void initState() {
 
             RotationSettings(
               interval: interval,
+              allowedIntervals: EntitlementService.allowedIntervals,
               rotationEnabled: rotationEnabled,
               globalFitMode: globalFitMode,
               onFitModeChanged: (value) {
@@ -321,15 +329,17 @@ void initState() {
                 if (value == null) return;
 
                 setState(() {
-                  interval = value;
+                  interval = EntitlementService.normalizeInterval(value);
                 });
 
                 saveSettings();
               },
               onRotationChanged: (value) {
-                setState(() {
-                  rotationEnabled = value;
-                });
+                if (value) {
+                  startRotation();
+                } else {
+                  stopRotation();
+                }
               },
             ),          
 
