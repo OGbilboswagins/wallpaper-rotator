@@ -17,8 +17,11 @@ import 'services/startup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
-  await windowManager.setPreventClose(true);
+
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+  }
 
   runApp(const WallpaperRotatorApp());
 }
@@ -127,6 +130,13 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   void initializeTargets() {
+    if (Platform.isAndroid) {
+      targets = [
+        WallpaperTarget(name: 'Home Screen'),
+      ];
+      return;
+    }
+    
     final monitorCount = WallpaperService.getWindowsMonitorCount();
 
     final detectedCount = monitorCount == 0 ? 1 : monitorCount;
@@ -252,8 +262,12 @@ Future<void> loadSettings() async {
 
 @override
 void dispose() {
-  windowManager.removeListener(this);
   rotationTimer?.cancel();
+
+  if (Platform.isWindows) {
+    windowManager.removeListener(this);
+  }
+
   super.dispose();
 }
 
@@ -276,17 +290,22 @@ void pickRandomWallpaperForTarget(int targetIndex) {
 @override
 void initState() {
   super.initState();
-  windowManager.addListener(this);
+
   initializeTargets();
   loadSettings();
-  StartupService.isStartupEnabled().then((enabled) {
-    if (!mounted) return;
 
-    setState(() {
-      launchOnStartup = enabled;
+  if (Platform.isWindows) {
+    windowManager.addListener(this);
+
+    StartupService.isStartupEnabled().then((enabled) {
+      if (!mounted) return;
+      setState(() {
+        launchOnStartup = enabled;
+      });
     });
-  });
-  initSystemTray();
+
+    initSystemTray();
+  }
 }
 
   @override
