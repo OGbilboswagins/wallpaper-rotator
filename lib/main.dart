@@ -13,6 +13,7 @@ import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'services/entitlement_service.dart';
+import 'services/startup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WindowListener {
   String interval = '4 hours';
   bool rotationEnabled = false;
+  bool launchOnStartup = false;
   String globalFitMode = 'Fit';
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
@@ -277,6 +279,13 @@ void initState() {
   windowManager.addListener(this);
   initializeTargets();
   loadSettings();
+  StartupService.isStartupEnabled().then((enabled) {
+    if (!mounted) return;
+
+    setState(() {
+      launchOnStartup = enabled;
+    });
+  });
   initSystemTray();
 }
 
@@ -311,20 +320,21 @@ void initState() {
               ),
 
             RotationSettings(
-              interval: interval,
-              allowedIntervals: EntitlementService.allowedIntervals,
-              rotationEnabled: rotationEnabled,
-              globalFitMode: globalFitMode,
-              onFitModeChanged: (value) {
-                if (value == null) return;
+              launchOnStartup: launchOnStartup,
+              onStartupChanged: (value) async {
+                if (value) {
+                  await StartupService.enableStartup();
+                } else {
+                  await StartupService.disableStartup();
+                }
 
                 setState(() {
-                  globalFitMode = value;
+                  launchOnStartup = value;
                 });
-
-                saveSettings();
               },
 
+              interval: interval,
+              allowedIntervals: EntitlementService.allowedIntervals,
               onIntervalChanged: (value) {
                 if (value == null) return;
 
@@ -334,12 +344,25 @@ void initState() {
 
                 saveSettings();
               },
+              
+              rotationEnabled: rotationEnabled,
               onRotationChanged: (value) {
                 if (value) {
                   startRotation();
                 } else {
                   stopRotation();
                 }
+              },
+
+              globalFitMode: globalFitMode,
+              onFitModeChanged: (value) {
+                if (value == null) return;
+
+                setState(() {
+                  globalFitMode = value;
+                });
+
+                saveSettings();
               },
             ),          
 

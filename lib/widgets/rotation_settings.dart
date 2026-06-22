@@ -8,6 +8,8 @@ class RotationSettings extends StatelessWidget {
   final ValueChanged<bool> onRotationChanged;
   final String globalFitMode;
   final ValueChanged<String?> onFitModeChanged;
+  final bool launchOnStartup;
+  final ValueChanged<bool> onStartupChanged;
 
   const RotationSettings({
     super.key,
@@ -18,6 +20,8 @@ class RotationSettings extends StatelessWidget {
     required this.onRotationChanged,
     required this.globalFitMode,
     required this.onFitModeChanged,
+    required this.launchOnStartup,
+    required this.onStartupChanged,
   });
 
   @override
@@ -70,6 +74,16 @@ class RotationSettings extends StatelessWidget {
           title: const Text('Rotation enabled'),
           value: rotationEnabled,
           onChanged: onRotationChanged,
+        ),
+
+        CheckboxListTile(
+          title: const Text('Launch on Windows startup'),
+          value: launchOnStartup,
+          onChanged: (value) {
+            if (value != null) {
+              onStartupChanged(value);
+            }
+          },
         ),
       ],
     );
