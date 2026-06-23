@@ -53,6 +53,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   String interval = '4 hours';
   bool rotationEnabled = false;
   bool launchOnStartup = false;
+  bool isApplyingWallpaper = false;
   String globalFitMode = 'Fit';
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
@@ -323,13 +324,25 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     if (target.selectedImagePath.isEmpty) return;
 
-    final result = await WallpaperService.applyWallpaper(
-      monitorIndex: targetIndex,
-      imagePath: target.selectedImagePath,
-      fitMode: globalFitMode,
-    );
+    setState(() {
+      isApplyingWallpaper = true;
+    });
 
-    debugPrint('Target $targetIndex result: $result');
+    try {
+      final result = await WallpaperService.applyWallpaper(
+        monitorIndex: targetIndex,
+        imagePath: target.selectedImagePath,
+        fitMode: globalFitMode,
+      );
+
+      debugPrint('Target $targetIndex result: $result');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isApplyingWallpaper = false;
+        });
+      }
+    }
   }
 
   Future<void> nextAndApplyWallpaperForTarget(int targetIndex) async {
@@ -442,9 +455,18 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 },
               ),
 
+              if (isApplyingWallpaper)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Center(child: Text('Applying wallpaper...')),
+                ),
+
               WallpaperControls(
-                hasWallpapers: targets[0].files.isNotEmpty,
-                hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
+                hasWallpapers:
+                    targets[0].files.isNotEmpty && !isApplyingWallpaper,
+                hasSelectedImage:
+                    targets[0].selectedImagePath.isNotEmpty &&
+                    !isApplyingWallpaper,
                 rotationEnabled: rotationEnabled,
                 onNextWallpaper: () async {
                   await nextAndApplyWallpaperForTarget(0);
