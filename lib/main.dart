@@ -409,6 +409,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 ),
 
               RotationSettings(
+                showStartupOption: Platform.isWindows,
+                showFitMode: Platform.isWindows,
                 launchOnStartup: launchOnStartup,
                 onStartupChanged: (value) async {
                   if (value) {

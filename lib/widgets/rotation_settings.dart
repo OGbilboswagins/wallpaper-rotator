@@ -10,6 +10,8 @@ class RotationSettings extends StatelessWidget {
   final ValueChanged<String?> onFitModeChanged;
   final bool launchOnStartup;
   final ValueChanged<bool> onStartupChanged;
+  final bool showStartupOption;
+  final bool showFitMode;
 
   const RotationSettings({
     super.key,
@@ -22,6 +24,8 @@ class RotationSettings extends StatelessWidget {
     required this.onFitModeChanged,
     required this.launchOnStartup,
     required this.onStartupChanged,
+    this.showStartupOption = true,
+    this.showFitMode = true,
   });
 
   @override
@@ -38,35 +42,32 @@ class RotationSettings extends StatelessWidget {
           value: interval,
           items: allowedIntervals
               .map(
-                (interval) => DropdownMenuItem(
-                  value: interval,
-                  child: Text(interval),
-                ),
+                (interval) =>
+                    DropdownMenuItem(value: interval, child: Text(interval)),
               )
               .toList(),
           onChanged: onIntervalChanged,
         ),
 
-        const SizedBox(height: 16),
+        if (showFitMode) ...[
+          const SizedBox(height: 16),
 
-        const Text(
-          'Wallpaper fit mode',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+          const Text(
+            'Wallpaper fit mode',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-        ),
 
-        DropdownButton<String>(
-          value: globalFitMode,
-          items: const [
-            DropdownMenuItem(value: 'Fit', child: Text('Fit')),
-            DropdownMenuItem(value: 'Fill', child: Text('Fill')),
-            DropdownMenuItem(value: 'Stretch', child: Text('Stretch')),
-            DropdownMenuItem(value: 'Center', child: Text('Center')),
-          ],
-          onChanged: onFitModeChanged,
-        ),
+          DropdownButton<String>(
+            value: globalFitMode,
+            items: const [
+              DropdownMenuItem(value: 'Fit', child: Text('Fit')),
+              DropdownMenuItem(value: 'Fill', child: Text('Fill')),
+              DropdownMenuItem(value: 'Stretch', child: Text('Stretch')),
+              DropdownMenuItem(value: 'Center', child: Text('Center')),
+            ],
+            onChanged: onFitModeChanged,
+          ),
+        ],
 
         const SizedBox(height: 12),
 
@@ -76,15 +77,15 @@ class RotationSettings extends StatelessWidget {
           onChanged: onRotationChanged,
         ),
 
-        CheckboxListTile(
-          title: const Text('Launch on Windows startup'),
-          value: launchOnStartup,
-          onChanged: (value) {
-            if (value != null) {
+        if (showStartupOption)
+          CheckboxListTile(
+            title: const Text('Launch on Windows startup'),
+            value: launchOnStartup,
+            onChanged: (value) {
+              if (value == null) return;
               onStartupChanged(value);
-            }
-          },
-        ),
+            },
+          ),
       ],
     );
   }
