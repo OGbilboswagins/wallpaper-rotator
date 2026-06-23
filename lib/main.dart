@@ -170,17 +170,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
       for (int i = 0; i < targets.length; i++) {
         if (targets[i].files.isEmpty) continue;
 
-        pickRandomWallpaperForTarget(i);
-
-        if (targets[i].selectedImagePath.isEmpty) continue;
-
-        final result = await WallpaperService.applyWallpaper(
-          monitorIndex: i,
-          imagePath: targets[i].selectedImagePath,
-          fitMode: globalFitMode,
-        );
-
-        debugPrint('Monitor $i result: $result');
+        await nextAndApplyWallpaperForTarget(i);
       }
     });
   }
@@ -189,17 +179,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     for (int i = 0; i < targets.length; i++) {
       if (targets[i].files.isEmpty) continue;
 
-      pickRandomWallpaperForTarget(i);
-
-      if (targets[i].selectedImagePath.isEmpty) continue;
-
-      final result = await WallpaperService.applyWallpaper(
-        monitorIndex: i,
-        imagePath: targets[i].selectedImagePath,
-        fitMode: globalFitMode,
-      );
-
-      debugPrint('Monitor $i result: $result');
+      await nextAndApplyWallpaperForTarget(i);
     }
   }
 
@@ -231,20 +211,43 @@ class _HomePageState extends State<HomePage> with WindowListener {
     return false;
   }
 
-  void scanFolderForTarget(int targetIndex, String folderPath) {
+  void scanFolderForTarget(
+    int targetIndex,
+    String folderPath, {
+    String preferredSelectedImagePath = '',
+  }) {
     final imageFiles = ScannerService.scanImages(folderPath);
+
+    String selectedImagePath = '';
+
+    if (preferredSelectedImagePath.isNotEmpty) {
+      final savedImageStillExists = imageFiles.any(
+        (file) => file.path == preferredSelectedImagePath,
+      );
+
+      if (savedImageStillExists) {
+        selectedImagePath = preferredSelectedImagePath;
+      }
+    }
+
+    if (selectedImagePath.isEmpty && imageFiles.isNotEmpty) {
+      selectedImagePath = imageFiles.first.path;
+    }
 
     setState(() {
       targets[targetIndex].folderPath = folderPath;
       targets[targetIndex].files = imageFiles;
+      targets[targetIndex].selectedImagePath = selectedImagePath;
+      targets[targetIndex].lastImagePath = selectedImagePath;
     });
-
-    pickRandomWallpaperForTarget(targetIndex);
   }
 
   Future<void> saveSettings() async {
     await SettingsService.saveSettings(
       targetFolders: targets.map((target) => target.folderPath).toList(),
+      selectedImages: targets
+          .map((target) => target.selectedImagePath)
+          .toList(),
       globalFitMode: globalFitMode,
       interval: interval,
       rotationEnabled: rotationEnabled,
@@ -255,6 +258,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     final settings = await SettingsService.loadSettings();
 
     final savedFolders = settings['targetFolders'] as List<String>;
+    final savedSelectedImages = settings['selectedImages'] as List<String>;
     final savedGlobalFitMode = settings['globalFitMode'] as String;
     final savedInterval = settings['interval'] as String?;
     final savedRotationEnabled = settings['rotationEnabled'] as bool;
@@ -270,7 +274,15 @@ class _HomePageState extends State<HomePage> with WindowListener {
       final folder = savedFolders[i];
 
       if (folder.isNotEmpty) {
-        scanFolderForTarget(i, folder);
+        final selectedImage = i < savedSelectedImages.length
+            ? savedSelectedImages[i]
+            : '';
+
+        scanFolderForTarget(
+          i,
+          folder,
+          preferredSelectedImagePath: selectedImage,
+        );
       }
     }
 
@@ -303,6 +315,29 @@ class _HomePageState extends State<HomePage> with WindowListener {
     setState(() {
       target.selectedImagePath = randomImage;
       target.lastImagePath = randomImage;
+    });
+  }
+
+  Future<void> applySelectedWallpaperForTarget(int targetIndex) async {
+    final target = targets[targetIndex];
+
+    if (target.selectedImagePath.isEmpty) return;
+
+    final result = await WallpaperService.applyWallpaper(
+      monitorIndex: targetIndex,
+      imagePath: target.selectedImagePath,
+      fitMode: globalFitMode,
+    );
+
+    debugPrint('Target $targetIndex result: $result');
+  }
+
+  Future<void> nextAndApplyWallpaperForTarget(int targetIndex) async {
+    pickRandomWallpaperForTarget(targetIndex);
+    saveSettings();
+
+    Future.microtask(() async {
+      await applySelectedWallpaperForTarget(targetIndex);
     });
   }
 
@@ -411,18 +446,12 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 hasWallpapers: targets[0].files.isNotEmpty,
                 hasSelectedImage: targets[0].selectedImagePath.isNotEmpty,
                 rotationEnabled: rotationEnabled,
-                onNextWallpaper: () => pickRandomWallpaperForTarget(0),
+                onNextWallpaper: () async {
+                  await nextAndApplyWallpaperForTarget(0);
+                },
                 onSetWallpaper: () async {
                   for (int i = 0; i < targets.length; i++) {
-                    if (targets[i].selectedImagePath.isEmpty) continue;
-
-                    final result = await WallpaperService.applyWallpaper(
-                      monitorIndex: i,
-                      imagePath: targets[i].selectedImagePath,
-                      fitMode: globalFitMode,
-                    );
-
-                    debugPrint('Target $i result: $result');
+                    await applySelectedWallpaperForTarget(i);
                   }
                 },
                 onStartRotation: startRotation,

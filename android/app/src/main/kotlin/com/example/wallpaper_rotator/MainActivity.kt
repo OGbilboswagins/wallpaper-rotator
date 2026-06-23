@@ -27,12 +27,19 @@ class MainActivity : FlutterActivity() {
                             return@setMethodCallHandler
                         }
 
-                        try {
-                            val message = setHomeWallpaper(path)
-                            result.success(message)
-                        } catch (e: Exception) {
-                            result.error("SET_WALLPAPER_FAILED", e.message, null)
-                        }
+                        Thread {
+                            try {
+                                val message = setHomeWallpaper(path)
+
+                                runOnUiThread {
+                                    result.success(message)
+                                }
+                            } catch (e: Exception) {
+                                runOnUiThread {
+                                    result.error("SET_WALLPAPER_FAILED", e.message, null)
+                                }
+                            }
+                        }.start()
                     }
 
                     else -> result.notImplemented()
@@ -70,6 +77,7 @@ class MainActivity : FlutterActivity() {
 
     private fun decodeBitmapForWallpaper(path: String): Bitmap? {
         val displayMetrics = resources.displayMetrics
+
         val targetWidth = displayMetrics.widthPixels * 2
         val targetHeight = displayMetrics.heightPixels * 2
 
