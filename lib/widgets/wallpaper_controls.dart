@@ -34,7 +34,7 @@ class WallpaperControls extends StatelessWidget {
 
         ElevatedButton(
           onPressed: hasSelectedImage ? onSetWallpaper : null,
-          child: const Text('Set Windows Wallpaper'),
+          child: const Text('Set Wallpaper'),
         ),
 
         const SizedBox(height: 8),
