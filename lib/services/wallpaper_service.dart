@@ -5,8 +5,9 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 
 class WallpaperService {
-  static const MethodChannel _androidWallpaperChannel =
-      MethodChannel('vpp_wallpaper_rotator/wallpaper');
+  static const MethodChannel _androidWallpaperChannel = MethodChannel(
+    'vpp_wallpaper_rotator/wallpaper',
+  );
 
   static void setWindowsWallpaper(String imagePath) {
     if (!Platform.isWindows) return;
@@ -17,9 +18,11 @@ class WallpaperService {
 
     final user32 = DynamicLibrary.open('user32.dll');
 
-    final systemParametersInfo = user32.lookupFunction<
-        Int32 Function(Uint32, Uint32, Pointer<Utf16>, Uint32),
-        int Function(int, int, Pointer<Utf16>, int)>('SystemParametersInfoW');
+    final systemParametersInfo = user32
+        .lookupFunction<
+          Int32 Function(Uint32, Uint32, Pointer<Utf16>, Uint32),
+          int Function(int, int, Pointer<Utf16>, int)
+        >('SystemParametersInfoW');
 
     final pathPointer = imagePath.toNativeUtf16();
 
@@ -38,9 +41,8 @@ class WallpaperService {
 
     final exe = DynamicLibrary.executable();
 
-    final getMonitorCount = exe.lookupFunction<Int32 Function(), int Function()>(
-      'GetMonitorCount',
-    );
+    final getMonitorCount = exe
+        .lookupFunction<Int32 Function(), int Function()>('GetMonitorCount');
 
     return getMonitorCount();
   }
@@ -68,9 +70,11 @@ class WallpaperService {
 
     final exe = DynamicLibrary.executable();
 
-    final applyMonitorWallpaper = exe.lookupFunction<
-        Int32 Function(Int32, Pointer<Utf16>, Int32),
-        int Function(int, Pointer<Utf16>, int)>('ApplyMonitorWallpaper');
+    final applyMonitorWallpaper = exe
+        .lookupFunction<
+          Int32 Function(Int32, Pointer<Utf16>, Int32),
+          int Function(int, Pointer<Utf16>, int)
+        >('ApplyMonitorWallpaper');
 
     final pathPointer = imagePath.toNativeUtf16();
 
@@ -93,9 +97,7 @@ class WallpaperService {
     if (Platform.isAndroid) {
       final result = await _androidWallpaperChannel.invokeMethod<String>(
         'setHomeWallpaper',
-        {
-          'path': imagePath,
-        },
+        {'path': imagePath},
       );
 
       return result ?? 'Android wallpaper set';
@@ -112,5 +114,29 @@ class WallpaperService {
     }
 
     return 'Unsupported platform';
+  }
+
+  static Future<void> moveAndroidAppToBackground() async {
+    if (!Platform.isAndroid) return;
+
+    await _androidWallpaperChannel.invokeMethod<String>('moveToBackground');
+  }
+
+  static Future<void> startAndroidRotationService({
+    required String folderPath,
+    required int intervalSeconds,
+  }) async {
+    if (!Platform.isAndroid) return;
+
+    await _androidWallpaperChannel.invokeMethod<String>(
+      'startRotationService',
+      {'folderPath': folderPath, 'intervalSeconds': intervalSeconds},
+    );
+  }
+
+  static Future<void> stopAndroidRotationService() async {
+    if (!Platform.isAndroid) return;
+
+    await _androidWallpaperChannel.invokeMethod<String>('stopRotationService');
   }
 }

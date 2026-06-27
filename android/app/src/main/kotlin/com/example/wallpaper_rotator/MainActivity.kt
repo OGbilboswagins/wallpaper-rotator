@@ -9,6 +9,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import kotlin.math.max
+import android.content.Intent
+
 
 class MainActivity : FlutterActivity() {
     private val channelName = "vpp_wallpaper_rotator/wallpaper"
@@ -40,6 +42,40 @@ class MainActivity : FlutterActivity() {
                                 }
                             }
                         }.start()
+                    }
+
+                    "moveToBackground" -> {
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+
+                        startActivity(homeIntent)
+                        result.success("Moved app to home screen")
+                    }
+
+                    "startRotationService" -> {
+                        val folderPath = call.argument<String>("folderPath")
+                        val intervalSeconds = call.argument<Int>("intervalSeconds")
+
+                        val serviceIntent = Intent(this, WallpaperRotationService::class.java).apply {
+                            putExtra("folderPath", folderPath)
+                            putExtra("intervalSeconds", intervalSeconds ?: 30)
+                        }
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(serviceIntent)
+                        } else {
+                            startService(serviceIntent)
+                        }
+
+                        result.success("Rotation service started")
+                    }
+
+                    "stopRotationService" -> {
+                        val serviceIntent = Intent(this, WallpaperRotationService::class.java)
+                        stopService(serviceIntent)
+                        result.success("Rotation service stopped")
                     }
 
                     else -> result.notImplemented()
@@ -78,8 +114,8 @@ class MainActivity : FlutterActivity() {
     private fun decodeBitmapForWallpaper(path: String): Bitmap? {
         val displayMetrics = resources.displayMetrics
 
-        val targetWidth = displayMetrics.widthPixels * 2
-        val targetHeight = displayMetrics.heightPixels * 2
+        val targetWidth = displayMetrics.widthPixels
+        val targetHeight = displayMetrics.heightPixels
 
         val boundsOptions = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
@@ -116,7 +152,7 @@ class MainActivity : FlutterActivity() {
             val halfWidth = imageWidth / 2
 
             while (
-                halfHeight / inSampleSize >= targetHeight &&
+                halfHeight / inSampleSize >= targetHeight ||
                 halfWidth / inSampleSize >= targetWidth
             ) {
                 inSampleSize *= 2

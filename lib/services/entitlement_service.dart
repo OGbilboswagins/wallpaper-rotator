@@ -1,4 +1,3 @@
-import 'dart:async';
 
 class EntitlementService {
   static bool get isPro => false;
@@ -22,6 +21,7 @@ class EntitlementService {
     }
 
     return const [
+      '30 seconds', // DEBUG ONLY - remove before release
       '4 hours',
       'Daily',
     ];

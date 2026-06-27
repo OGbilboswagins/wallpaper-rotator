@@ -58,6 +58,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
   Timer? rotationTimer;
   List<WallpaperTarget> targets = [];
   final SystemTray systemTray = SystemTray();
+  bool settingsLoaded = false;
 
   Future<void> initSystemTray() async {
     await systemTray.initSystemTray(
@@ -167,13 +168,47 @@ class _HomePageState extends State<HomePage> with WindowListener {
 
     saveSettings();
 
-    rotationTimer = Timer.periodic(getIntervalDuration(), (timer) async {
-      for (int i = 0; i < targets.length; i++) {
-        if (targets[i].files.isEmpty) continue;
+    debugPrint('Rotation started. Interval: $interval');
 
+    rotationTimer = Timer.periodic(getIntervalDuration(), (timer) async {
+      debugPrint('Rotation tick: ${DateTime.now()}');
+
+      for (int i = 0; i < targets.length; i++) {
+        debugPrint('Checking target $i');
+
+        if (targets[i].files.isEmpty) {
+          debugPrint('Target $i skipped: no files');
+          continue;
+        }
+
+        debugPrint('Rotating target $i');
         await nextAndApplyWallpaperForTarget(i);
+        debugPrint('Finished target $i');
       }
     });
+  }
+
+  int getIntervalSeconds() {
+    switch (interval) {
+      case '10 seconds':
+        return 10;
+      case '30 seconds':
+        return 30;
+      case '1 minute':
+        return 60;
+      case '15 minutes':
+        return 900;
+      case '30 minutes':
+        return 1800;
+      case '1 hour':
+        return 3600;
+      case '4 hours':
+        return 14400;
+      case 'Daily':
+        return 86400;
+      default:
+        return 30;
+    }
   }
 
   Future<void> nextWallpaperAllMonitors() async {
@@ -185,6 +220,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   void stopRotation() {
+    debugPrint('Rotation stopped');
+
     rotationTimer?.cancel();
 
     setState(() {
@@ -269,6 +306,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
         savedInterval ?? '4 hours',
       );
       globalFitMode = savedGlobalFitMode;
+      rotationEnabled = savedRotationEnabled;
+      settingsLoaded = true;
     });
 
     for (int i = 0; i < savedFolders.length && i < targets.length; i++) {
@@ -287,9 +326,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
       }
     }
 
-    if (savedRotationEnabled) {
-      startRotation();
-    }
+    //    if (savedRotationEnabled) {
+    //      startRotation();
+    //    }
   }
 
   @override
@@ -436,8 +475,23 @@ class _HomePageState extends State<HomePage> with WindowListener {
                   saveSettings();
                 },
 
-                rotationEnabled: rotationEnabled,
-                onRotationChanged: (value) {
+                rotationEnabled: settingsLoaded && rotationEnabled,
+                onRotationChanged: (value) async {
+                  if (!settingsLoaded) return;
+
+                  if (Platform.isAndroid) {
+                    if (value) {
+                      await Permission.notification.request();
+
+                      await WallpaperService.startAndroidRotationService(
+                        folderPath: targets[0].folderPath,
+                        intervalSeconds: getIntervalSeconds(),
+                      );
+                    } else {
+                      await WallpaperService.stopAndroidRotationService();
+                    }
+                  }
+
                   if (value) {
                     startRotation();
                   } else {
@@ -469,17 +523,15 @@ class _HomePageState extends State<HomePage> with WindowListener {
                 hasSelectedImage:
                     targets[0].selectedImagePath.isNotEmpty &&
                     !isApplyingWallpaper,
-                rotationEnabled: rotationEnabled,
-                onNextWallpaper: () async {
-                  await nextAndApplyWallpaperForTarget(0);
+                onNextWallpaper: () {
+                  pickRandomWallpaperForTarget(0);
+                  saveSettings();
                 },
                 onSetWallpaper: () async {
                   for (int i = 0; i < targets.length; i++) {
                     await applySelectedWallpaperForTarget(i);
                   }
                 },
-                onStartRotation: startRotation,
-                onStopRotation: stopRotation,
               ),
             ],
           ),
