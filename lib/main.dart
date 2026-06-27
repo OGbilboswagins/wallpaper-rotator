@@ -49,7 +49,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with WindowListener {
+class _HomePageState extends State<HomePage>
+    with WindowListener, WidgetsBindingObserver {
   String interval = '4 hours';
   bool rotationEnabled = false;
   bool launchOnStartup = false;
@@ -59,6 +60,17 @@ class _HomePageState extends State<HomePage> with WindowListener {
   List<WallpaperTarget> targets = [];
   final SystemTray systemTray = SystemTray();
   bool settingsLoaded = false;
+//  DateTime? _resumeStartedAt;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('Lifecycle state: $state at ${DateTime.now()}');
+
+    if (state == AppLifecycleState.resumed) {
+//      _resumeStartedAt = DateTime.now();
+      debugPrint('App resumed');
+    }
+  }
 
   Future<void> initSystemTray() async {
     await systemTray.initSystemTray(
@@ -254,6 +266,9 @@ class _HomePageState extends State<HomePage> with WindowListener {
     String folderPath, {
     String preferredSelectedImagePath = '',
   }) {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('scanFolderForTarget started: $folderPath');
+
     final imageFiles = ScannerService.scanImages(folderPath);
 
     String selectedImagePath = '';
@@ -278,6 +293,11 @@ class _HomePageState extends State<HomePage> with WindowListener {
       targets[targetIndex].selectedImagePath = selectedImagePath;
       targets[targetIndex].lastImagePath = selectedImagePath;
     });
+
+    stopwatch.stop();
+    debugPrint(
+      'scanFolderForTarget finished in ${stopwatch.elapsedMilliseconds}ms with ${imageFiles.length} images',
+    );
   }
 
   Future<void> saveSettings() async {
@@ -293,6 +313,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
   }
 
   Future<void> loadSettings() async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('loadSettings started');
     final settings = await SettingsService.loadSettings();
 
     final savedFolders = settings['targetFolders'] as List<String>;
@@ -300,6 +322,7 @@ class _HomePageState extends State<HomePage> with WindowListener {
     final savedGlobalFitMode = settings['globalFitMode'] as String;
     final savedInterval = settings['interval'] as String?;
     final savedRotationEnabled = settings['rotationEnabled'] as bool;
+//    final shouldRestoreRotationEnabled = !Platform.isAndroid;
 
     setState(() {
       interval = EntitlementService.normalizeInterval(
@@ -326,9 +349,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
       }
     }
 
-    //    if (savedRotationEnabled) {
-    //      startRotation();
-    //    }
+    stopwatch.stop();
+    debugPrint('loadSettings finished in ${stopwatch.elapsedMilliseconds}ms');
   }
 
   @override
@@ -338,6 +360,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
     if (Platform.isWindows) {
       windowManager.removeListener(this);
     }
+
+    WidgetsBinding.instance.removeObserver(this);
 
     super.dispose();
   }
@@ -396,6 +420,8 @@ class _HomePageState extends State<HomePage> with WindowListener {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
 
     initializeTargets();
     loadSettings();
@@ -487,11 +513,26 @@ class _HomePageState extends State<HomePage> with WindowListener {
                         folderPath: targets[0].folderPath,
                         intervalSeconds: getIntervalSeconds(),
                       );
+
+                      setState(() {
+                        rotationEnabled = true;
+                      });
+
+                      await saveSettings();
                     } else {
                       await WallpaperService.stopAndroidRotationService();
+
+                      setState(() {
+                        rotationEnabled = false;
+                      });
+
+                      await saveSettings();
                     }
+
+                    return;
                   }
 
+                  // Windows only
                   if (value) {
                     startRotation();
                   } else {
