@@ -153,6 +153,57 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
     );
   }
 
+  Future<void> changeNow() async {
+    if (folderPath.isEmpty || imageCount == 0 || isApplying) return;
+
+    setState(() {
+      isApplying = true;
+    });
+
+    try {
+      final images = ScannerService.scanImages(folderPath);
+      if (images.isEmpty) return;
+
+      images.shuffle();
+      final imagePath = images.first.path;
+
+      await WallpaperService.applyWallpaper(
+        monitorIndex: 0,
+        imagePath: imagePath,
+        fitMode: 'Fit',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isApplying = false;
+        });
+      }
+    }
+  }
+
+  Future<void> updateInterval(String? value) async {
+    if (value == null) return;
+
+    setState(() {
+      interval = value;
+    });
+
+    await SettingsService.saveSettings(
+      targetFolders: [folderPath],
+      selectedImages: [''],
+      globalFitMode: 'Fit',
+      interval: interval,
+      rotationEnabled: rotationEnabled,
+    );
+
+    if (rotationEnabled && folderPath.isNotEmpty) {
+      await WallpaperService.startAndroidRotationService(
+        folderPath: folderPath,
+        intervalSeconds: getIntervalSeconds(),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,17 +233,13 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
             interval: interval,
             intervals: intervals,
             onRotationChanged: toggleRotation,
-            onIntervalChanged: (value) {
-              if (value == null) return;
-
-              setState(() {
-                interval = value;
-              });
-            },
+            onIntervalChanged: updateInterval,
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: isApplying ? null : () {},
+            onPressed: folderPath.isEmpty || imageCount == 0 || isApplying
+                ? null
+                : changeNow,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 14),
               child: Text(isApplying ? 'Applying...' : 'Change Now'),
