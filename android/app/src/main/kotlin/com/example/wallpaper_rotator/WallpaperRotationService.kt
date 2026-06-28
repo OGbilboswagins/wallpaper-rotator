@@ -139,6 +139,11 @@ class WallpaperRotationService : Service() {
             wallpaperManager.setBitmap(bitmap)
         }
 
+        getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            .edit()
+            .putString("flutter.lastAppliedWallpaperPath", randomFile.absolutePath)
+            .apply()
+
         bitmap.recycle()
     }
 

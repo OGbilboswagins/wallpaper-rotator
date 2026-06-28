@@ -20,6 +20,8 @@ class SettingsService {
   static Future<Map<String, dynamic>> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final selectedImages = prefs.getStringList('selectedImages') ?? [];
+    final lastAppliedWallpaperPath =
+    prefs.getString('lastAppliedWallpaperPath') ?? '';
 
     return {
       'targetFolders': prefs.getStringList('targetFolders') ?? [],
@@ -27,6 +29,7 @@ class SettingsService {
       'interval': prefs.getString('interval'),
       'rotationEnabled': prefs.getBool('rotationEnabled') ?? false,
       'selectedImages': selectedImages,
+      'lastAppliedWallpaperPath': lastAppliedWallpaperPath,
     };
   }
 }

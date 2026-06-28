@@ -60,14 +60,13 @@ class _HomePageState extends State<HomePage>
   List<WallpaperTarget> targets = [];
   final SystemTray systemTray = SystemTray();
   bool settingsLoaded = false;
-//  DateTime? _resumeStartedAt;
+  //  DateTime? _resumeStartedAt;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     debugPrint('Lifecycle state: $state at ${DateTime.now()}');
 
     if (state == AppLifecycleState.resumed) {
-//      _resumeStartedAt = DateTime.now();
       debugPrint('App resumed');
     }
   }
@@ -313,16 +312,15 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> loadSettings() async {
-    final stopwatch = Stopwatch()..start();
-    debugPrint('loadSettings started');
     final settings = await SettingsService.loadSettings();
 
     final savedFolders = settings['targetFolders'] as List<String>;
     final savedSelectedImages = settings['selectedImages'] as List<String>;
+
     final savedGlobalFitMode = settings['globalFitMode'] as String;
     final savedInterval = settings['interval'] as String?;
     final savedRotationEnabled = settings['rotationEnabled'] as bool;
-//    final shouldRestoreRotationEnabled = !Platform.isAndroid;
+    //    final shouldRestoreRotationEnabled = !Platform.isAndroid;
 
     setState(() {
       interval = EntitlementService.normalizeInterval(
@@ -348,9 +346,6 @@ class _HomePageState extends State<HomePage>
         );
       }
     }
-
-    stopwatch.stop();
-    debugPrint('loadSettings finished in ${stopwatch.elapsedMilliseconds}ms');
   }
 
   @override
@@ -424,7 +419,10 @@ class _HomePageState extends State<HomePage>
     WidgetsBinding.instance.addObserver(this);
 
     initializeTargets();
-    loadSettings();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadSettings();
+    });
 
     if (Platform.isWindows) {
       windowManager.addListener(this);
@@ -556,6 +554,12 @@ class _HomePageState extends State<HomePage>
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Center(child: Text('Applying wallpaper...')),
+                ),
+
+              if (Platform.isAndroid && rotationEnabled)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Center(child: Text('Rotation service is running')),
                 ),
 
               WallpaperControls(
