@@ -15,6 +15,7 @@ import 'dart:io';
 import 'services/entitlement_service.dart';
 import 'services/startup_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'platforms/android/android_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +38,7 @@ class WallpaperRotatorApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomePage(),
+      home: Platform.isAndroid ? const AndroidHomeScreen() : const HomePage(),
     );
   }
 }
