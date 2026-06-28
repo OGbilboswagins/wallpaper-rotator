@@ -11,6 +11,10 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setStringList('targetFolders', targetFolders);
+    await prefs.setString(
+      'androidFolderPath',
+      targetFolders.isNotEmpty ? targetFolders.first : '',
+    );
     await prefs.setStringList('selectedImages', selectedImages);
     await prefs.setString('globalFitMode', globalFitMode);
     await prefs.setString('interval', interval);
@@ -21,7 +25,7 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     final selectedImages = prefs.getStringList('selectedImages') ?? [];
     final lastAppliedWallpaperPath =
-    prefs.getString('lastAppliedWallpaperPath') ?? '';
+        prefs.getString('lastAppliedWallpaperPath') ?? '';
 
     return {
       'targetFolders': prefs.getStringList('targetFolders') ?? [],
@@ -30,6 +34,7 @@ class SettingsService {
       'rotationEnabled': prefs.getBool('rotationEnabled') ?? false,
       'selectedImages': selectedImages,
       'lastAppliedWallpaperPath': lastAppliedWallpaperPath,
+      'androidFolderPath': prefs.getString('androidFolderPath') ?? '',
     };
   }
 }
