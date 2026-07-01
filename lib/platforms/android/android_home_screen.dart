@@ -257,6 +257,7 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
 
       await WallpaperService.startAndroidRotationService(
         folderPath: activeFolderPath,
+        lockFolderPath: lockFolderPath,
         intervalSeconds: getIntervalSeconds(),
         wallpaperMode: wallpaperMode,
       );
@@ -328,6 +329,7 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
     if (rotationEnabled && activeFolderPath.isNotEmpty) {
       await WallpaperService.startAndroidRotationService(
         folderPath: activeFolderPath,
+        lockFolderPath: lockFolderPath,
         intervalSeconds: getIntervalSeconds(),
         wallpaperMode: wallpaperMode,
       );

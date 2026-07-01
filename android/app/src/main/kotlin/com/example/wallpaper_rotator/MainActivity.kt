@@ -58,11 +58,13 @@ class MainActivity : FlutterActivity() {
                     "startRotationService" -> {
                         val wallpaperMode = call.argument<String>("wallpaperMode") ?: "Home Only"
                         val folderPath = call.argument<String>("folderPath")
+                        val lockFolderPath = call.argument<String>("lockFolderPath") ?: ""
                         val intervalSeconds = call.argument<Int>("intervalSeconds")
 
                         val serviceIntent = Intent(this, WallpaperRotationService::class.java).apply {
                             putExtra("wallpaperMode", wallpaperMode)
                             putExtra("folderPath", folderPath)
+                            putExtra("lockFolderPath", lockFolderPath)
                             putExtra("intervalSeconds", intervalSeconds ?: 30)
                         }
 

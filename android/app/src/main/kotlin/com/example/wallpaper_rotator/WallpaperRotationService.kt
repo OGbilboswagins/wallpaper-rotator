@@ -21,6 +21,7 @@ class WallpaperRotationService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var rotationRunnable: Runnable? = null
     private var folderPath: String? = null
+    private var lockFolderPath: String? = null
     private var intervalSeconds: Int = 30
     private var wallpaperMode: String = "Home Only"
 
@@ -36,6 +37,7 @@ class WallpaperRotationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         folderPath = intent?.getStringExtra("folderPath")
+        lockFolderPath = intent?.getStringExtra("lockFolderPath")
         intervalSeconds = intent?.getIntExtra("intervalSeconds", 30) ?: 30
         wallpaperMode = intent?.getStringExtra("wallpaperMode") ?: "Home Only"
 
@@ -87,6 +89,83 @@ class WallpaperRotationService : Service() {
         }
     }
 
+    private fun getRandomImageFile(path: String?): File? {
+        if (path.isNullOrBlank()) return null
+
+        val folder = File(path)
+
+        if (!folder.exists() || !folder.isDirectory) {
+            return null
+        }
+
+        val imageFiles = folder.listFiles { file ->
+            file.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp")
+        } ?: return null
+
+        if (imageFiles.isEmpty()) return null
+
+        return imageFiles[Random.nextInt(imageFiles.size)]
+    }
+
+    private fun applyWallpaperFile(file: File, flags: Int) {
+        val bitmap = decodeBitmapForWallpaper(file.absolutePath) ?: return
+        val wallpaperManager = WallpaperManager.getInstance(applicationContext)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            wallpaperManager.setBitmap(
+                bitmap,
+                null,
+                true,
+                flags
+            )
+        } else {
+            wallpaperManager.setBitmap(bitmap)
+        }
+
+        bitmap.recycle()
+    }
+
+    private fun rotateWallpaper() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            val homeFile = getRandomImageFile(folderPath) ?: return
+            applyWallpaperFile(homeFile, WallpaperManager.FLAG_SYSTEM)
+            return
+        }
+
+        when (wallpaperMode) {
+            "Lock Only" -> {
+                val lockFile = getRandomImageFile(lockFolderPath ?: folderPath) ?: return
+                applyWallpaperFile(lockFile, WallpaperManager.FLAG_LOCK)
+            }
+
+            "Both Shared" -> {
+                val sharedFile = getRandomImageFile(folderPath) ?: return
+                applyWallpaperFile(
+                    sharedFile,
+                    WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+                )
+            }
+
+            "Both Separate" -> {
+                val homeFile = getRandomImageFile(folderPath)
+                val lockFile = getRandomImageFile(lockFolderPath)
+
+                if (homeFile != null) {
+                    applyWallpaperFile(homeFile, WallpaperManager.FLAG_SYSTEM)
+                }
+
+                if (lockFile != null) {
+                   applyWallpaperFile(lockFile, WallpaperManager.FLAG_LOCK)
+                }
+            }
+
+            else -> {
+                val homeFile = getRandomImageFile(folderPath) ?: return
+                applyWallpaperFile(homeFile, WallpaperManager.FLAG_SYSTEM)
+            }
+        }
+    }
+
     private fun startRotation() {
         rotationRunnable?.let { handler.removeCallbacks(it) }
 
@@ -106,53 +185,6 @@ class WallpaperRotationService : Service() {
         }
 
         handler.postDelayed(rotationRunnable!!, intervalSeconds * 1000L)
-    }
-
-    private fun rotateWallpaper() {
-        val path = folderPath ?: return
-
-        val folder = File(path)
-
-        if (!folder.exists() || !folder.isDirectory) {
-            return
-        }
-
-        val imageFiles = folder.listFiles { file ->
-            file.extension.lowercase() in listOf("jpg", "jpeg", "png", "webp")
-        } ?: return
-
-        if (imageFiles.isEmpty()) return
-
-        val randomFile = imageFiles[Random.nextInt(imageFiles.size)]
-
-        val bitmap = decodeBitmapForWallpaper(randomFile.absolutePath)
-            ?: return
-
-        val wallpaperManager = WallpaperManager.getInstance(applicationContext)
-
-        val flags = when (wallpaperMode) {
-            "Lock Only" -> WallpaperManager.FLAG_LOCK
-            "Both Shared" -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
-            else -> WallpaperManager.FLAG_SYSTEM
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            wallpaperManager.setBitmap(
-                bitmap,
-                null,
-                true,
-                flags
-            )
-        } else {
-            wallpaperManager.setBitmap(bitmap)
-        }
-
-        getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            .edit()
-            .putString("flutter.lastAppliedWallpaperPath", randomFile.absolutePath)
-            .apply()
-
-        bitmap.recycle()
     }
 
     private fun decodeBitmapForWallpaper(path: String): Bitmap? {

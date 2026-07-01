@@ -127,12 +127,14 @@ class WallpaperService {
     required String folderPath,
     required int intervalSeconds,
     required String wallpaperMode,
+    String lockFolderPath = '',
   }) async {
     if (!Platform.isAndroid) return;
 
     await _androidWallpaperChannel
         .invokeMethod<String>('startRotationService', {
           'folderPath': folderPath,
+          'lockFolderPath': lockFolderPath,
           'intervalSeconds': intervalSeconds,
           'wallpaperMode': wallpaperMode,
         });
