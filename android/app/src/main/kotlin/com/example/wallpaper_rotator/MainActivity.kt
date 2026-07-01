@@ -23,6 +23,7 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "setHomeWallpaper" -> {
                         val path = call.argument<String>("path")
+                        val mode = call.argument<String>("mode") ?: "Home Only"
 
                         if (path.isNullOrBlank()) {
                             result.error("NO_PATH", "No image path was provided.", null)
@@ -31,7 +32,7 @@ class MainActivity : FlutterActivity() {
 
                         Thread {
                             try {
-                                val message = setHomeWallpaper(path)
+                                val message = setWallpaper(path, mode)
 
                                 runOnUiThread {
                                     result.success(message)
@@ -55,10 +56,12 @@ class MainActivity : FlutterActivity() {
                     }
 
                     "startRotationService" -> {
+                        val wallpaperMode = call.argument<String>("wallpaperMode") ?: "Home Only"
                         val folderPath = call.argument<String>("folderPath")
                         val intervalSeconds = call.argument<Int>("intervalSeconds")
 
                         val serviceIntent = Intent(this, WallpaperRotationService::class.java).apply {
+                            putExtra("wallpaperMode", wallpaperMode)
                             putExtra("folderPath", folderPath)
                             putExtra("intervalSeconds", intervalSeconds ?: 30)
                         }
@@ -83,7 +86,10 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun setHomeWallpaper(path: String): String {
+    private fun setWallpaper(
+       path: String,
+        mode: String
+    ): String {
         val imageFile = File(path)
 
         if (!imageFile.exists()) {
@@ -96,11 +102,18 @@ class MainActivity : FlutterActivity() {
         val wallpaperManager = WallpaperManager.getInstance(applicationContext)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val flags = when (mode) {
+                "Lock Only" -> WallpaperManager.FLAG_LOCK
+                "Both Shared" ->
+                    WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+               else -> WallpaperManager.FLAG_SYSTEM
+            }
+
             wallpaperManager.setBitmap(
                 bitmap,
                 null,
                 true,
-                WallpaperManager.FLAG_SYSTEM
+                flags
             )
         } else {
             wallpaperManager.setBitmap(bitmap)
@@ -108,7 +121,7 @@ class MainActivity : FlutterActivity() {
 
         bitmap.recycle()
 
-        return "Android home wallpaper set"
+        return "Wallpaper applied: $mode"
     }
 
     private fun decodeBitmapForWallpaper(path: String): Bitmap? {

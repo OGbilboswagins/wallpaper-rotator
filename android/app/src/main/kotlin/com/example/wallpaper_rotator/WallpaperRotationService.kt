@@ -22,6 +22,7 @@ class WallpaperRotationService : Service() {
     private var rotationRunnable: Runnable? = null
     private var folderPath: String? = null
     private var intervalSeconds: Int = 30
+    private var wallpaperMode: String = "Home Only"
 
     companion object {
         const val CHANNEL_ID = "wallpaper_rotation_channel"
@@ -36,6 +37,7 @@ class WallpaperRotationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         folderPath = intent?.getStringExtra("folderPath")
         intervalSeconds = intent?.getIntExtra("intervalSeconds", 30) ?: 30
+        wallpaperMode = intent?.getStringExtra("wallpaperMode") ?: "Home Only"
 
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
@@ -67,7 +69,7 @@ class WallpaperRotationService : Service() {
 
         return builder
             .setContentTitle("Wallpaper Rotator")
-            .setContentText("Rotation service is running")
+            .setContentText("Mode: $wallpaperMode")
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .build()
     }
@@ -128,12 +130,18 @@ class WallpaperRotationService : Service() {
 
         val wallpaperManager = WallpaperManager.getInstance(applicationContext)
 
+        val flags = when (wallpaperMode) {
+            "Lock Only" -> WallpaperManager.FLAG_LOCK
+            "Both Shared" -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+            else -> WallpaperManager.FLAG_SYSTEM
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             wallpaperManager.setBitmap(
                 bitmap,
                 null,
                 true,
-                WallpaperManager.FLAG_SYSTEM
+                flags
             )
         } else {
             wallpaperManager.setBitmap(bitmap)

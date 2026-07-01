@@ -93,11 +93,12 @@ class WallpaperService {
     required int monitorIndex,
     required String imagePath,
     required String fitMode,
+    String wallpaperMode = 'Home Only',
   }) async {
     if (Platform.isAndroid) {
       final result = await _androidWallpaperChannel.invokeMethod<String>(
         'setHomeWallpaper',
-        {'path': imagePath},
+        {'path': imagePath, 'mode': wallpaperMode},
       );
 
       return result ?? 'Android wallpaper set';
@@ -125,13 +126,16 @@ class WallpaperService {
   static Future<void> startAndroidRotationService({
     required String folderPath,
     required int intervalSeconds,
+    required String wallpaperMode,
   }) async {
     if (!Platform.isAndroid) return;
 
-    await _androidWallpaperChannel.invokeMethod<String>(
-      'startRotationService',
-      {'folderPath': folderPath, 'intervalSeconds': intervalSeconds},
-    );
+    await _androidWallpaperChannel
+        .invokeMethod<String>('startRotationService', {
+          'folderPath': folderPath,
+          'intervalSeconds': intervalSeconds,
+          'wallpaperMode': wallpaperMode,
+        });
   }
 
   static Future<void> stopAndroidRotationService() async {

@@ -303,12 +303,14 @@ class _HomePageState extends State<HomePage>
   Future<void> saveSettings() async {
     await SettingsService.saveSettings(
       targetFolders: targets.map((target) => target.folderPath).toList(),
+      lockFolderPath: '',
       selectedImages: targets
           .map((target) => target.selectedImagePath)
           .toList(),
       globalFitMode: globalFitMode,
       interval: interval,
       rotationEnabled: rotationEnabled,
+      wallpaperMode: 'Home Only',
     );
   }
 
@@ -509,6 +511,7 @@ class _HomePageState extends State<HomePage>
                       await Permission.notification.request();
 
                       await WallpaperService.startAndroidRotationService(
+                        wallpaperMode: 'Home Only',
                         folderPath: targets[0].folderPath,
                         intervalSeconds: getIntervalSeconds(),
                       );
