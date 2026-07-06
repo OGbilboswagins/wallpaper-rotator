@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../services/scanner_service.dart';
-import '../../services/settings_service.dart';
+import 'models/rotation_settings.dart';
+import 'services/android_rotation_controller.dart';
+import 'services/android_settings_store.dart';
 import '../../services/wallpaper_service.dart';
+import 'services/android_entitlement_service.dart';
 
 class AndroidHomeScreen extends StatefulWidget {
   const AndroidHomeScreen({super.key});
@@ -15,72 +17,49 @@ class AndroidHomeScreen extends StatefulWidget {
   State<AndroidHomeScreen> createState() => _AndroidHomeScreenState();
 }
 
-class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
-  String homeFolderPath = '';
-  String lockFolderPath = '';
+class _AndroidHomeScreenState extends State<AndroidHomeScreen>
+    with WidgetsBindingObserver {
+  AndroidRotationSettings settings = AndroidRotationSettings.initial();
 
-  int homeImageCount = 0;
-  int lockImageCount = 0;
-  bool rotationEnabled = false;
-  String interval = '4 hours';
   bool showAdvanced = false;
   bool isApplying = false;
-  String wallpaperMode = 'Home Only';
 
-  final List<String> wallpaperModes = const [
-    'Home Only',
-    'Lock Only',
-    'Both Shared',
-    'Both Separate',
-  ];
+  String get homeFolderPath => settings.homeFolderPath;
+  String get lockFolderPath => settings.lockFolderPath;
+  int get homeImageCount => settings.homeImageCount;
+  int get lockImageCount => settings.lockImageCount;
+  bool get rotationEnabled => settings.rotationEnabled;
+  String get interval => settings.interval.label;
+  String get wallpaperMode => settings.wallpaperMode.label;
 
-  final List<String> intervals = const [
-    '30 seconds',
-    '1 minute',
-    '15 minutes',
-    '30 minutes',
-    '1 hour',
-    '4 hours',
-    'Daily',
-  ];
+  List<WallpaperMode> get wallpaperModes => WallpaperMode.values;
 
-  int getIntervalSeconds() {
-    switch (interval) {
-      case '30 seconds':
-        return 30;
-      case '1 minute':
-        return 60;
-      case '15 minutes':
-        return 900;
-      case '30 minutes':
-        return 1800;
-      case '1 hour':
-        return 3600;
-      case '4 hours':
-        return 14400;
-      case 'Daily':
-        return 86400;
-      default:
-        return 14400;
-    }
-  }
+  List<IntervalOption> get intervals =>
+      AndroidEntitlementService.allowedIntervals;
 
   bool get usesHomeFolder =>
-      wallpaperMode == 'Home Only' ||
-      wallpaperMode == 'Both Shared' ||
-      wallpaperMode == 'Both Separate';
+      settings.wallpaperMode == WallpaperMode.homeOnly ||
+      settings.wallpaperMode == WallpaperMode.bothShared ||
+      settings.wallpaperMode == WallpaperMode.bothSeparate;
 
   bool get usesLockFolder =>
-      wallpaperMode == 'Lock Only' || wallpaperMode == 'Both Separate';
+      settings.wallpaperMode == WallpaperMode.lockOnly ||
+      settings.wallpaperMode == WallpaperMode.bothSeparate;
 
   String get activeFolderPath {
-    if (wallpaperMode == 'Lock Only') return lockFolderPath;
-    return homeFolderPath;
+    if (settings.wallpaperMode == WallpaperMode.lockOnly) {
+      return settings.lockFolderPath;
+    }
+
+    return settings.homeFolderPath;
   }
 
   int get activeImageCount {
-    if (wallpaperMode == 'Lock Only') return lockImageCount;
-    return homeImageCount;
+    if (settings.wallpaperMode == WallpaperMode.lockOnly) {
+      return settings.lockImageCount;
+    }
+
+    return settings.homeImageCount;
   }
 
   String get statusText => rotationEnabled ? 'Running' : 'Stopped';
@@ -99,46 +78,51 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
     return false;
   }
 
-  Future<void> saveAndroidSettings() async {
-    await SettingsService.saveSettings(
-      targetFolders: [homeFolderPath],
-      lockFolderPath: lockFolderPath,
-      selectedImages: [''],
-      globalFitMode: 'Fit',
-      interval: interval,
-      rotationEnabled: rotationEnabled,
-      wallpaperMode: wallpaperMode,
-    );
+  Future<void> persistSettings() async {
+    await AndroidSettingsStore.save(settings);
+  }
+
+  Future<void> restartRotationServiceIfNeeded() async {
+    await AndroidRotationController.restartIfNeeded(settings);
   }
 
   List<Widget> buildFolderCards() {
-    switch (wallpaperMode) {
-      case 'Lock Only':
+    switch (settings.wallpaperMode) {
+      case WallpaperMode.lockOnly:
         return [
           _FolderCard(
             title: 'Lock Folder',
             folderPath: lockFolderPath,
             imageCount: lockImageCount,
+            validationState: AndroidRotationController.validateFolder(
+              lockFolderPath,
+            ),
             onChooseFolder: () => chooseFolder(forLockScreen: true),
           ),
         ];
 
-      case 'Both Shared':
+      case WallpaperMode.bothShared:
         return [
           _FolderCard(
             title: 'Home + Lock Folder',
             folderPath: homeFolderPath,
             imageCount: homeImageCount,
+            validationState: AndroidRotationController.validateFolder(
+              homeFolderPath,
+            ),
             onChooseFolder: () => chooseFolder(forLockScreen: false),
           ),
         ];
 
-      case 'Both Separate':
+      case WallpaperMode.bothSeparate:
         return [
           _FolderCard(
             title: 'Home Folder',
             folderPath: homeFolderPath,
             imageCount: homeImageCount,
+            validationState: AndroidRotationController.validateFolder(
+              homeFolderPath,
+            ),
             onChooseFolder: () => chooseFolder(forLockScreen: false),
           ),
           const SizedBox(height: 16),
@@ -146,17 +130,22 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
             title: 'Lock Folder',
             folderPath: lockFolderPath,
             imageCount: lockImageCount,
+            validationState: AndroidRotationController.validateFolder(
+              lockFolderPath,
+            ),
             onChooseFolder: () => chooseFolder(forLockScreen: true),
           ),
         ];
 
-      case 'Home Only':
-      default:
+      case WallpaperMode.homeOnly:
         return [
           _FolderCard(
             title: 'Home Folder',
             folderPath: homeFolderPath,
             imageCount: homeImageCount,
+            validationState: AndroidRotationController.validateFolder(
+              homeFolderPath,
+            ),
             onChooseFolder: () => chooseFolder(forLockScreen: false),
           ),
         ];
@@ -164,120 +153,83 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
   }
 
   Future<void> chooseFolder({required bool forLockScreen}) async {
-    final selectedFolder = await FilePicker.platform.getDirectoryPath();
-
-    if (selectedFolder == null) return;
-
     final hasPermission = await ensureAndroidImagePermission();
     if (!hasPermission) return;
 
-    final images = ScannerService.scanImages(selectedFolder);
+    final selectedFolder = await FilePicker.platform.getDirectoryPath();
+    if (selectedFolder == null) return;
 
     setState(() {
-      if (forLockScreen) {
-        lockFolderPath = selectedFolder;
-        lockImageCount = images.length;
-      } else {
-        homeFolderPath = selectedFolder;
-        homeImageCount = images.length;
-      }
+      settings = AndroidRotationController.applyFolderSelection(
+        settings,
+        selectedFolder,
+        forLockScreen: forLockScreen,
+      );
     });
 
-    await saveAndroidSettings();
+    await persistSettings();
+    await restartRotationServiceIfNeeded();
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadSettings();
   }
 
-  Future<void> updateWallpaperMode(String? value) async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadSettings();
+    }
+  }
+
+  Future<void> updateWallpaperMode(WallpaperMode? value) async {
     if (value == null) return;
 
     setState(() {
-      wallpaperMode = value;
+      settings = settings.copyWith(wallpaperMode: value);
     });
 
-    await SettingsService.saveSettings(
-      targetFolders: [activeFolderPath],
-      lockFolderPath: lockFolderPath,
-      selectedImages: [''],
-      globalFitMode: 'Fit',
-      interval: interval,
-      rotationEnabled: rotationEnabled,
-      wallpaperMode: wallpaperMode,
-    );
+    await persistSettings();
+    await restartRotationServiceIfNeeded();
   }
 
   Future<void> loadSettings() async {
-    final settings = await SettingsService.loadSettings();
-    final savedWallpaperMode =
-        settings['wallpaperMode'] as String? ?? 'Home Only';
-    final savedLockFolderPath = settings['lockFolderPath'] as String? ?? '';
+    final loadedSettings = await AndroidSettingsStore.load();
+    final serviceRunning = await WallpaperService.isAndroidRotationRunning();
 
-    final savedFolders = settings['targetFolders'] as List<String>;
-    final savedInterval = settings['interval'] as String? ?? '4 hours';
-    final savedRotationEnabled = settings['rotationEnabled'] as bool? ?? false;
-
-    if (savedFolders.isEmpty || savedFolders.first.isEmpty) {
-      setState(() {
-        wallpaperMode = savedWallpaperMode;
-        interval = savedInterval;
-        rotationEnabled = savedRotationEnabled;
-      });
-      return;
-    }
-
-    final savedFolder = savedFolders.first;
-    final images = ScannerService.scanImages(savedFolder);
-
-    int restoredLockCount = 0;
-
-    if (savedLockFolderPath.isNotEmpty) {
-      restoredLockCount = ScannerService.scanImages(savedLockFolderPath).length;
-    }
+    if (!mounted) return;
 
     setState(() {
-      wallpaperMode = savedWallpaperMode;
-      homeFolderPath = savedFolder;
-      homeImageCount = images.length;
-      interval = savedInterval;
-      rotationEnabled = savedRotationEnabled;
-      lockFolderPath = savedLockFolderPath;
-      lockImageCount = restoredLockCount;
+      settings = loadedSettings.copyWith(rotationEnabled: serviceRunning);
     });
   }
 
   Future<void> toggleRotation(bool value) async {
     if (activeFolderPath.isEmpty) return;
 
+    final updatedSettings = settings.copyWith(rotationEnabled: value);
+
     if (value) {
       await Permission.notification.request();
-
-      await WallpaperService.startAndroidRotationService(
-        folderPath: activeFolderPath,
-        lockFolderPath: lockFolderPath,
-        intervalSeconds: getIntervalSeconds(),
-        wallpaperMode: wallpaperMode,
-      );
+      await AndroidRotationController.start(updatedSettings);
     } else {
-      await WallpaperService.stopAndroidRotationService();
+      await AndroidRotationController.stop();
     }
 
     setState(() {
-      rotationEnabled = value;
+      settings = updatedSettings;
     });
 
-    await SettingsService.saveSettings(
-      targetFolders: [activeFolderPath],
-      lockFolderPath: lockFolderPath,
-      selectedImages: [''],
-      globalFitMode: 'Fit',
-      interval: interval,
-      rotationEnabled: rotationEnabled,
-      wallpaperMode: wallpaperMode,
-    );
+    await persistSettings();
   }
 
   Future<void> changeNow() async {
@@ -288,18 +240,7 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
     });
 
     try {
-      final images = ScannerService.scanImages(activeFolderPath);
-      if (images.isEmpty) return;
-
-      images.shuffle();
-      final imagePath = images.first.path;
-
-      await WallpaperService.applyWallpaper(
-        monitorIndex: 0,
-        imagePath: imagePath,
-        fitMode: 'Fit',
-        wallpaperMode: wallpaperMode,
-      );
+      await AndroidRotationController.changeNow(settings);
     } finally {
       if (mounted) {
         setState(() {
@@ -309,31 +250,15 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
     }
   }
 
-  Future<void> updateInterval(String? value) async {
+  Future<void> updateInterval(IntervalOption? value) async {
     if (value == null) return;
 
     setState(() {
-      interval = value;
+      settings = settings.copyWith(interval: value);
     });
 
-    await SettingsService.saveSettings(
-      targetFolders: [activeFolderPath],
-      lockFolderPath: lockFolderPath,
-      selectedImages: [''],
-      globalFitMode: 'Fit',
-      interval: interval,
-      rotationEnabled: rotationEnabled,
-      wallpaperMode: wallpaperMode,
-    );
-
-    if (rotationEnabled && activeFolderPath.isNotEmpty) {
-      await WallpaperService.startAndroidRotationService(
-        folderPath: activeFolderPath,
-        lockFolderPath: lockFolderPath,
-        intervalSeconds: getIntervalSeconds(),
-        wallpaperMode: wallpaperMode,
-      );
-    }
+    await persistSettings();
+    await restartRotationServiceIfNeeded();
   }
 
   @override
@@ -355,17 +280,19 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen> {
           _StatusCard(statusText: statusText, rotationEnabled: rotationEnabled),
           const SizedBox(height: 16),
           _ModeCard(
-            mode: wallpaperMode,
-            modes: wallpaperModes,
+            mode: settings.wallpaperMode,
+            modes: WallpaperMode.values,
+            isModeAllowed: AndroidEntitlementService.canUseMode,
             onModeChanged: updateWallpaperMode,
           ),
           const SizedBox(height: 16),
           ...buildFolderCards(),
           const SizedBox(height: 16),
           _RotationCard(
-            rotationEnabled: rotationEnabled,
-            interval: interval,
-            intervals: intervals,
+            rotationEnabled: settings.rotationEnabled,
+            interval: settings.interval,
+            intervals: IntervalOption.values,
+            isIntervalAllowed: AndroidEntitlementService.canUseInterval,
             onRotationChanged: toggleRotation,
             onIntervalChanged: updateInterval,
           ),
@@ -436,25 +363,31 @@ class _ModeCard extends StatelessWidget {
     required this.mode,
     required this.modes,
     required this.onModeChanged,
+    required this.isModeAllowed,
   });
 
-  final String mode;
-  final List<String> modes;
-  final ValueChanged<String?> onModeChanged;
+  final WallpaperMode mode;
+  final List<WallpaperMode> modes;
+  final ValueChanged<WallpaperMode?> onModeChanged;
+  final bool Function(WallpaperMode mode) isModeAllowed;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: DropdownButtonFormField<String>(
+        child: DropdownButtonFormField<WallpaperMode>(
           initialValue: mode,
           decoration: const InputDecoration(labelText: 'Mode'),
-          items: modes
-              .map(
-                (value) => DropdownMenuItem(value: value, child: Text(value)),
-              )
-              .toList(),
+          items: modes.map((value) {
+            final allowed = isModeAllowed(value);
+
+            return DropdownMenuItem<WallpaperMode>(
+              value: allowed ? value : null,
+              enabled: allowed,
+              child: Text(allowed ? value.label : '${value.label} - Pro'),
+            );
+          }).toList(),
           onChanged: onModeChanged,
         ),
       ),
@@ -467,13 +400,29 @@ class _FolderCard extends StatelessWidget {
     required this.title,
     required this.folderPath,
     required this.imageCount,
+    required this.validationState,
     required this.onChooseFolder,
   });
 
   final String title;
   final String folderPath;
   final int imageCount;
+  final FolderValidationState validationState;
   final VoidCallback onChooseFolder;
+
+  bool get hasWarning =>
+      folderPath.isNotEmpty && validationState != FolderValidationState.valid;
+
+  String get warningText {
+    switch (validationState) {
+      case FolderValidationState.missing:
+        return 'Folder no longer exists';
+      case FolderValidationState.empty:
+        return 'No supported images found';
+      case FolderValidationState.valid:
+        return '';
+    }
+  }
 
   String displayPath(String path) {
     if (path.length <= 32) return path;
@@ -496,7 +445,17 @@ class _FolderCard extends StatelessWidget {
               hasFolder ? displayPath(folderPath) : 'No folder selected',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            if (hasFolder) ...[
+            if (hasWarning) ...[
+              const SizedBox(height: 8),
+              Text(
+                warningText,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (hasFolder && !hasWarning) ...[
               const SizedBox(height: 8),
               Text('Images Found: $imageCount'),
             ],
@@ -519,13 +478,15 @@ class _RotationCard extends StatelessWidget {
     required this.intervals,
     required this.onRotationChanged,
     required this.onIntervalChanged,
+    required this.isIntervalAllowed,
   });
 
   final bool rotationEnabled;
-  final String interval;
-  final List<String> intervals;
+  final IntervalOption interval;
+  final List<IntervalOption> intervals;
   final ValueChanged<bool> onRotationChanged;
-  final ValueChanged<String?> onIntervalChanged;
+  final ValueChanged<IntervalOption?> onIntervalChanged;
+  final bool Function(IntervalOption interval) isIntervalAllowed;
 
   @override
   Widget build(BuildContext context) {
@@ -544,15 +505,18 @@ class _RotationCard extends StatelessWidget {
               onChanged: onRotationChanged,
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField<IntervalOption>(
               initialValue: interval,
               decoration: const InputDecoration(labelText: 'Change Every'),
-              items: intervals
-                  .map(
-                    (value) =>
-                        DropdownMenuItem(value: value, child: Text(value)),
-                  )
-                  .toList(),
+              items: intervals.map((value) {
+                final allowed = isIntervalAllowed(value);
+
+                return DropdownMenuItem<IntervalOption>(
+                  value: allowed ? value : null,
+                  enabled: allowed,
+                  child: Text(allowed ? value.label : '${value.label} - Pro'),
+                );
+              }).toList(),
               onChanged: onIntervalChanged,
             ),
           ],
@@ -589,11 +553,16 @@ class _AdvancedCard extends StatelessWidget {
               onTap: () {},
             ),
             ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: const Text('Lock Screen Rotation'),
-              subtitle: const Text('Coming later'),
-              enabled: false,
-              onTap: () {},
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: const Text('Unlock Pro'),
+              subtitle: const Text(
+                'Separate lock screen rotation, faster intervals, and themes',
+              ),
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Pro upgrade coming soon')),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.info_outline),

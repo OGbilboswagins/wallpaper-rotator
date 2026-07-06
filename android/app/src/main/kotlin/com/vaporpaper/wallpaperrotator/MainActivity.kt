@@ -1,4 +1,4 @@
-package com.example.wallpaper_rotator
+package com.vaporpaper.wallpaperrotator
 
 import android.app.WallpaperManager
 import android.graphics.Bitmap
@@ -81,6 +81,10 @@ class MainActivity : FlutterActivity() {
                         val serviceIntent = Intent(this, WallpaperRotationService::class.java)
                         stopService(serviceIntent)
                         result.success("Rotation service stopped")
+                    }
+
+                    "isAndroidRotationRunning" -> {
+                        result.success(WallpaperRotationService.isRunning)
                     }
 
                     else -> result.notImplemented()

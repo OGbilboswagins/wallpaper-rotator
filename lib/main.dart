@@ -35,10 +35,23 @@ class WallpaperRotatorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Wallpaper Rotator',
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.system,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.light,
+        ),
       ),
-      home: Platform.isAndroid ? const AndroidHomeScreen() : const HomePage(),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.dark,
+        ),
+      ),
+      home: const AndroidHomeScreen(),
     );
   }
 }

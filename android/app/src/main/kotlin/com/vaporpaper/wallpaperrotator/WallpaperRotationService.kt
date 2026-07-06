@@ -1,4 +1,4 @@
-package com.example.wallpaper_rotator
+package com.vaporpaper.wallpaperrotator
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,6 +15,7 @@ import java.io.File
 import kotlin.random.Random
 import android.graphics.Bitmap
 import kotlin.math.max
+import android.app.PendingIntent
 
 class WallpaperRotationService : Service() {
 
@@ -28,6 +29,10 @@ class WallpaperRotationService : Service() {
     companion object {
         const val CHANNEL_ID = "wallpaper_rotation_channel"
         const val NOTIFICATION_ID = 1001
+        const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_SHUFFLE = "ACTION_SHUFFLE"
+
+        var isRunning: Boolean = false
     }
 
     override fun onCreate() {
@@ -36,6 +41,20 @@ class WallpaperRotationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopRotation()
+            isRunning = false
+            saveRotationEnabled(false)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_SHUFFLE) {
+            rotateWallpaper()
+            return START_STICKY
+        }
+
         folderPath = intent?.getStringExtra("folderPath")
         lockFolderPath = intent?.getStringExtra("lockFolderPath")
         intervalSeconds = intent?.getIntExtra("intervalSeconds", 30) ?: 30
@@ -44,16 +63,23 @@ class WallpaperRotationService : Service() {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
 
+        isRunning = true
         startRotation()
 
         return START_STICKY
     }
 
-    override fun onDestroy() {
+    private fun stopRotation() {
         rotationRunnable?.let {
             handler.removeCallbacks(it)
         }
 
+        rotationRunnable = null
+        isRunning = false
+    }
+
+    override fun onDestroy() {
+        stopRotation()
         super.onDestroy()
     }
 
@@ -69,10 +95,42 @@ class WallpaperRotationService : Service() {
                 Notification.Builder(this)
             }
 
+        val stopIntent = Intent(this, WallpaperRotationService::class.java).apply {
+            action = ACTION_STOP
+        }
+
+        val stopPendingIntent = PendingIntent.getService(
+            this,
+            1001,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val shuffleIntent = Intent(this, WallpaperRotationService::class.java).apply {
+            action = ACTION_SHUFFLE
+        }
+
+        val shufflePendingIntent = PendingIntent.getService(
+            this,
+            1002,
+            shuffleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return builder
             .setContentTitle("Wallpaper Rotator")
             .setContentText("Mode: $wallpaperMode")
-            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setSmallIcon(R.drawable.ic_notification)
+            .addAction(
+                android.R.drawable.ic_menu_rotate,
+                "Shuffle",
+                shufflePendingIntent
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Stop",
+                stopPendingIntent
+            )
             .build()
     }
 
@@ -155,7 +213,7 @@ class WallpaperRotationService : Service() {
                 }
 
                 if (lockFile != null) {
-                   applyWallpaperFile(lockFile, WallpaperManager.FLAG_LOCK)
+                    applyWallpaperFile(lockFile, WallpaperManager.FLAG_LOCK)
                 }
             }
 
@@ -185,6 +243,13 @@ class WallpaperRotationService : Service() {
         }
 
         handler.postDelayed(rotationRunnable!!, intervalSeconds * 1000L)
+    }
+
+    private fun saveRotationEnabled(value: Boolean) {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("flutter.rotationEnabled", value)
+            .apply()
     }
 
     private fun decodeBitmapForWallpaper(path: String): Bitmap? {

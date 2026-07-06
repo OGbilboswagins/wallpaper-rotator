@@ -1,4 +1,4 @@
-package com.example.wallpaper_rotator
+package com.vaporpaper.wallpaperrotator
 
 import android.content.BroadcastReceiver
 import android.content.Context

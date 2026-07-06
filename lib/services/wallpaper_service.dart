@@ -140,6 +140,16 @@ class WallpaperService {
         });
   }
 
+  static Future<bool> isAndroidRotationRunning() async {
+    if (!Platform.isAndroid) return false;
+
+    final result = await _androidWallpaperChannel.invokeMethod<bool>(
+      'isAndroidRotationRunning',
+    );
+
+    return result ?? false;
+  }
+
   static Future<void> stopAndroidRotationService() async {
     if (!Platform.isAndroid) return;
 

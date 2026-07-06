@@ -11,6 +11,7 @@ class SettingsService {
     required String lockFolderPath,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
 
     await prefs.setString('wallpaperMode', wallpaperMode);
     await prefs.setStringList('targetFolders', targetFolders);
