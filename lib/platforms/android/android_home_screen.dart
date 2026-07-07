@@ -9,6 +9,7 @@ import 'services/android_rotation_controller.dart';
 import 'services/android_settings_store.dart';
 import '../../services/wallpaper_service.dart';
 import 'services/android_entitlement_service.dart';
+import '../../services/billing/billing_service.dart';
 
 class AndroidHomeScreen extends StatefulWidget {
   const AndroidHomeScreen({super.key});
@@ -558,9 +559,13 @@ class _AdvancedCard extends StatelessWidget {
               subtitle: const Text(
                 'Separate lock screen rotation, faster intervals, and themes',
               ),
-              onTap: () {
+              onTap: () async {
+                await BillingService.instance.buyPro();
+
+                if (!context.mounted) return;
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pro upgrade coming soon')),
+                  const SnackBar(content: Text('Purchase started')),
                 );
               },
             ),

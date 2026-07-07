@@ -16,6 +16,7 @@ import 'services/entitlement_service.dart';
 import 'services/startup_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'platforms/android/android_home_screen.dart';
+import 'services/billing/billing_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,8 @@ void main() async {
     await windowManager.setPreventClose(true);
   }
 
+  await BillingService.instance.initialize();
+  
   runApp(const WallpaperRotatorApp());
 }
 

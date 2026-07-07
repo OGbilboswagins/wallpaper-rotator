@@ -1,7 +1,8 @@
 import '../models/rotation_settings.dart';
+import '../../../services/billing/billing_service.dart';
 
 class AndroidEntitlementService {
-  static const bool isPro = false;
+  static bool get isPro => BillingService.instance.isPro;
 
   static bool canUseMode(WallpaperMode mode) {
     if (isPro) return true;
