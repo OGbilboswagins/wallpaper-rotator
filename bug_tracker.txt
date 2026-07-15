@@ -1,0 +1,60 @@
+Wallpaper Rotator v0.9 RC
+
+Known Issues
+
+#1
+Title:
+Wallpaper mode resets to Home Only after reboot.
+
+Status:
+Fixed
+
+Priority:
+High
+
+Steps:
+1. Select Lock Only or Both.
+2. Reboot phone.
+3. Open app.
+
+Expected:
+Previous wallpaper mode is restored.
+
+Actual:
+Mode resets to Home Only.
+
+Notes:
+Discovered during closed-testing preparation.
+
+
+------------------------------------------------------------------------------
+
+Wallpaper Rotator v0.9 RC
+
+Known Issues
+
+#2
+Title:
+Choose folder does not work on Android 9
+
+Status:
+Fixed
+
+Priority:
+High
+
+Steps:
+1. Tap Choose Folder
+2. Nothing happens.
+
+Expected:
+A separate window open up to choose a folder.
+
+Actual:
+Nothing happens.
+
+Notes:
+Discovered during closed-testing preparation.
+
+
+------------------------------------------------------------------------------

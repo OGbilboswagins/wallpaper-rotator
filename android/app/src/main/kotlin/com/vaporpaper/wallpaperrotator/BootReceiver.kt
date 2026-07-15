@@ -18,6 +18,13 @@ class BootReceiver : BroadcastReceiver() {
         val folderPath = prefs.getString("flutter.androidFolderPath", "") ?: ""
         val intervalString = prefs.getString("flutter.interval", "4 hours") ?: "4 hours"
 
+        val lockFolderPath =
+            prefs.getString("flutter.lockFolderPath", "") ?: ""
+
+        val wallpaperMode =
+            prefs.getString("flutter.wallpaperMode", "Home Only")
+                ?: "Home Only"
+
         if (!rotationEnabled || folderPath.isBlank()) return
 
         val intervalSeconds = when (intervalString) {
@@ -33,6 +40,8 @@ class BootReceiver : BroadcastReceiver() {
 
         val serviceIntent = Intent(context, WallpaperRotationService::class.java).apply {
             putExtra("folderPath", folderPath)
+            putExtra("lockFolderPath", lockFolderPath)
+            putExtra("wallpaperMode", wallpaperMode)
             putExtra("intervalSeconds", intervalSeconds)
         }
 

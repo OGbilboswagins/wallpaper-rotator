@@ -10,6 +10,7 @@ import 'services/android_settings_store.dart';
 import '../../services/wallpaper_service.dart';
 import 'services/android_entitlement_service.dart';
 import '../../services/billing/billing_service.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class AndroidHomeScreen extends StatefulWidget {
   const AndroidHomeScreen({super.key});
@@ -66,7 +67,16 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen>
   String get statusText => rotationEnabled ? 'Running' : 'Stopped';
 
   Future<bool> ensureAndroidImagePermission() async {
-    final status = await Permission.photos.request();
+    if (!Platform.isAndroid) return true;
+
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
+
+    final Permission permission = sdkInt >= 33
+        ? Permission.photos
+        : Permission.storage;
+
+    final status = await permission.request();
 
     if (status.isGranted || status.isLimited) {
       return true;
@@ -154,22 +164,41 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen>
   }
 
   Future<void> chooseFolder({required bool forLockScreen}) async {
-    final hasPermission = await ensureAndroidImagePermission();
-    if (!hasPermission) return;
+    debugPrint('Choose Folder tapped. forLockScreen=$forLockScreen');
 
-    final selectedFolder = await FilePicker.platform.getDirectoryPath();
-    if (selectedFolder == null) return;
+    try {
+      final hasPermission = await ensureAndroidImagePermission();
 
-    setState(() {
-      settings = AndroidRotationController.applyFolderSelection(
-        settings,
-        selectedFolder,
-        forLockScreen: forLockScreen,
+      debugPrint('Image permission granted: $hasPermission');
+
+      if (!hasPermission) return;
+
+      final selectedFolder = await FilePicker.platform.getDirectoryPath();
+
+      debugPrint('Folder picker returned: $selectedFolder');
+
+      if (selectedFolder == null || !mounted) return;
+
+      setState(() {
+        settings = AndroidRotationController.applyFolderSelection(
+          settings,
+          selectedFolder,
+          forLockScreen: forLockScreen,
+        );
+      });
+
+      await persistSettings();
+      await restartRotationServiceIfNeeded();
+    } catch (error, stackTrace) {
+      debugPrint('Folder selection failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the folder picker.')),
       );
-    });
-
-    await persistSettings();
-    await restartRotationServiceIfNeeded();
+    }
   }
 
   @override
@@ -225,6 +254,8 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen>
     } else {
       await AndroidRotationController.stop();
     }
+
+    if (!mounted) return;
 
     setState(() {
       settings = updatedSettings;
@@ -384,7 +415,7 @@ class _ModeCard extends StatelessWidget {
             final allowed = isModeAllowed(value);
 
             return DropdownMenuItem<WallpaperMode>(
-              value: allowed ? value : null,
+              value: value,
               enabled: allowed,
               child: Text(allowed ? value.label : '${value.label} - Pro'),
             );
@@ -513,7 +544,7 @@ class _RotationCard extends StatelessWidget {
                 final allowed = isIntervalAllowed(value);
 
                 return DropdownMenuItem<IntervalOption>(
-                  value: allowed ? value : null,
+                  value: value,
                   enabled: allowed,
                   child: Text(allowed ? value.label : '${value.label} - Pro'),
                 );
