@@ -1,7 +1,7 @@
 name: wallpaper_rotator
 description: "A simple, ad-free wallpaper rotation app for Android."
 publish_to: 'none'
-version: 1.0.0+2
+version: 2.0.0-rc.1+3
 
 environment:
   sdk: ^3.12.2
