@@ -16,6 +16,7 @@ class AndroidRotationController {
       lockFolderPath: settings.lockFolderPath,
       intervalSeconds: settings.intervalSeconds,
       wallpaperMode: settings.wallpaperMode.label,
+      fitMode: settings.fitMode.label,
     );
   }
 
@@ -43,7 +44,7 @@ class AndroidRotationController {
     await WallpaperService.applyWallpaper(
       monitorIndex: 0,
       imagePath: images.first.path,
-      fitMode: 'Fit',
+      fitMode: settings.fitMode.label,
       wallpaperMode: settings.wallpaperMode.label,
     );
   }

@@ -9,7 +9,7 @@ class AndroidSettingsStore {
       targetFolders: [settings.homeFolderPath],
       lockFolderPath: settings.lockFolderPath,
       selectedImages: [''],
-      globalFitMode: 'Fit',
+      globalFitMode: settings.fitMode.label,
       interval: settings.interval.label,
       rotationEnabled: settings.rotationEnabled,
       wallpaperMode: settings.wallpaperMode.label,
@@ -21,15 +21,23 @@ class AndroidSettingsStore {
 
     final savedWallpaperMode =
         savedSettings['wallpaperMode'] as String? ?? 'Home Only';
+
     final savedLockFolderPath =
         savedSettings['lockFolderPath'] as String? ?? '';
 
     final savedFolders = savedSettings['targetFolders'] as List<String>;
-    final savedInterval = savedSettings['interval'] as String? ?? '4 hours';
+
+    final savedInterval =
+        savedSettings['interval'] as String? ?? '4 hours';
+
+    final savedFitMode =
+        savedSettings['globalFitMode'] as String? ?? 'Fill';
+
     final savedRotationEnabled =
         savedSettings['rotationEnabled'] as bool? ?? false;
 
-    final homeFolderPath = savedFolders.isEmpty ? '' : savedFolders.first;
+    final homeFolderPath =
+        savedFolders.isEmpty ? '' : savedFolders.first;
 
     final homeImageCount = homeFolderPath.isEmpty
         ? 0
@@ -39,14 +47,23 @@ class AndroidSettingsStore {
         ? 0
         : ScannerService.scanImages(savedLockFolderPath).length;
 
-    final loadedMode = WallpaperMode.fromLabel(savedWallpaperMode);
-    final loadedInterval = IntervalOption.fromLabel(savedInterval);
+    final loadedMode =
+        WallpaperMode.fromLabel(savedWallpaperMode);
+
+    final loadedInterval =
+        IntervalOption.fromLabel(savedInterval);
+
+    final loadedFitMode =
+        WallpaperFitMode.fromLabel(savedFitMode);
 
     return AndroidRotationSettings.initial().copyWith(
-      wallpaperMode: AndroidEntitlementService.normalizeMode(loadedMode),
+      wallpaperMode:
+          AndroidEntitlementService.normalizeMode(loadedMode),
       homeFolderPath: homeFolderPath,
       homeImageCount: homeImageCount,
-      interval: AndroidEntitlementService.normalizeInterval(loadedInterval),
+      fitMode: loadedFitMode,
+      interval:
+          AndroidEntitlementService.normalizeInterval(loadedInterval),
       rotationEnabled: savedRotationEnabled,
       lockFolderPath: savedLockFolderPath,
       lockImageCount: lockImageCount,

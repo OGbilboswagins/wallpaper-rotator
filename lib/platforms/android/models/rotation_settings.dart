@@ -32,6 +32,40 @@ enum WallpaperMode {
   }
 }
 
+enum WallpaperFitMode {
+  fill,
+  fit,
+  stretch,
+  center;
+
+  String get label {
+    switch (this) {
+      case WallpaperFitMode.fill:
+        return 'Fill';
+      case WallpaperFitMode.fit:
+        return 'Fit';
+      case WallpaperFitMode.stretch:
+        return 'Stretch';
+      case WallpaperFitMode.center:
+        return 'Center';
+    }
+  }
+
+  static WallpaperFitMode fromLabel(String value) {
+    switch (value) {
+      case 'Fit':
+        return WallpaperFitMode.fit;
+      case 'Stretch':
+        return WallpaperFitMode.stretch;
+      case 'Center':
+        return WallpaperFitMode.center;
+      case 'Fill':
+      default:
+        return WallpaperFitMode.fill;
+    }
+  }
+}
+
 enum IntervalOption {
   seconds30,
   minute1,
@@ -100,17 +134,14 @@ enum IntervalOption {
   }
 }
 
-enum FolderValidationState {
-  valid,
-  missing,
-  empty,
-}
+enum FolderValidationState { valid, missing, empty }
 
 class AndroidRotationSettings {
   final String homeFolderPath;
   final String lockFolderPath;
   final int homeImageCount;
   final int lockImageCount;
+  final WallpaperFitMode fitMode;
   final bool rotationEnabled;
   final IntervalOption interval;
   final WallpaperMode wallpaperMode;
@@ -120,6 +151,7 @@ class AndroidRotationSettings {
     required this.lockFolderPath,
     required this.homeImageCount,
     required this.lockImageCount,
+    required this.fitMode,
     required this.rotationEnabled,
     required this.interval,
     required this.wallpaperMode,
@@ -131,6 +163,7 @@ class AndroidRotationSettings {
       lockFolderPath: '',
       homeImageCount: 0,
       lockImageCount: 0,
+      fitMode: WallpaperFitMode.fill,
       rotationEnabled: false,
       interval: IntervalOption.hours4,
       wallpaperMode: WallpaperMode.homeOnly,
@@ -144,6 +177,7 @@ class AndroidRotationSettings {
     String? lockFolderPath,
     int? homeImageCount,
     int? lockImageCount,
+    WallpaperFitMode? fitMode,
     bool? rotationEnabled,
     IntervalOption? interval,
     WallpaperMode? wallpaperMode,
@@ -153,6 +187,7 @@ class AndroidRotationSettings {
       lockFolderPath: lockFolderPath ?? this.lockFolderPath,
       homeImageCount: homeImageCount ?? this.homeImageCount,
       lockImageCount: lockImageCount ?? this.lockImageCount,
+      fitMode: fitMode ?? this.fitMode,
       rotationEnabled: rotationEnabled ?? this.rotationEnabled,
       interval: interval ?? this.interval,
       wallpaperMode: wallpaperMode ?? this.wallpaperMode,

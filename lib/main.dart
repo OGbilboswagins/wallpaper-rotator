@@ -528,6 +528,7 @@ class _HomePageState extends State<HomePage>
 
                       await WallpaperService.startAndroidRotationService(
                         wallpaperMode: 'Home Only',
+                        fitMode: 'Fill',
                         folderPath: targets[0].folderPath,
                         intervalSeconds: getIntervalSeconds(),
                       );

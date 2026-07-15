@@ -10,6 +10,11 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import kotlin.math.max
 import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import kotlin.math.min
 
 
 class MainActivity : FlutterActivity() {
@@ -24,6 +29,7 @@ class MainActivity : FlutterActivity() {
                     "setHomeWallpaper" -> {
                         val path = call.argument<String>("path")
                         val mode = call.argument<String>("mode") ?: "Home Only"
+                        val fitMode = call.argument<String>("fitMode") ?: "Fill"
 
                         if (path.isNullOrBlank()) {
                             result.error("NO_PATH", "No image path was provided.", null)
@@ -32,7 +38,7 @@ class MainActivity : FlutterActivity() {
 
                         Thread {
                             try {
-                                val message = setWallpaper(path, mode)
+                                val message = setWallpaper(path, mode, fitMode)
 
                                 runOnUiThread {
                                     result.success(message)
@@ -57,12 +63,14 @@ class MainActivity : FlutterActivity() {
 
                     "startRotationService" -> {
                         val wallpaperMode = call.argument<String>("wallpaperMode") ?: "Home Only"
+                        val fitMode = call.argument<String>("fitMode") ?: "Fill"
                         val folderPath = call.argument<String>("folderPath")
                         val lockFolderPath = call.argument<String>("lockFolderPath") ?: ""
                         val intervalSeconds = call.argument<Int>("intervalSeconds")
 
                         val serviceIntent = Intent(this, WallpaperRotationService::class.java).apply {
                             putExtra("wallpaperMode", wallpaperMode)
+                            putExtra("fitMode", fitMode)
                             putExtra("folderPath", folderPath)
                             putExtra("lockFolderPath", lockFolderPath)
                             putExtra("intervalSeconds", intervalSeconds ?: 30)
@@ -93,8 +101,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun setWallpaper(
-       path: String,
-        mode: String
+        path: String,
+        mode: String,
+        fitMode: String
     ): String {
         val imageFile = File(path)
 
@@ -102,7 +111,7 @@ class MainActivity : FlutterActivity() {
             throw IllegalArgumentException("Image file does not exist: $path")
         }
 
-        val bitmap = decodeBitmapForWallpaper(path)
+        val bitmap = prepareBitmapForWallpaper(path, fitMode)
             ?: throw IllegalArgumentException("Could not decode image: $path")
 
         val wallpaperManager = WallpaperManager.getInstance(applicationContext)
@@ -127,20 +136,31 @@ class MainActivity : FlutterActivity() {
 
         bitmap.recycle()
 
-        return "Wallpaper applied: $mode"
+        return "Wallpaper applied: $mode, fit: $fitMode"
     }
 
-    private fun decodeBitmapForWallpaper(path: String): Bitmap? {
+    private fun prepareBitmapForWallpaper(
+        path: String,
+        fitMode: String
+    ): Bitmap? {
         val displayMetrics = resources.displayMetrics
 
         val targetWidth = displayMetrics.widthPixels
         val targetHeight = displayMetrics.heightPixels
+
+        if (targetWidth <= 0 || targetHeight <= 0) {
+            return null
+        }
 
         val boundsOptions = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
 
         BitmapFactory.decodeFile(path, boundsOptions)
+
+        if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+            return null
+        }
 
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = calculateInSampleSize(
@@ -151,7 +171,183 @@ class MainActivity : FlutterActivity() {
             )
         }
 
-        return BitmapFactory.decodeFile(path, decodeOptions)
+        val sourceBitmap =
+            BitmapFactory.decodeFile(path, decodeOptions) ?: return null
+
+        val preparedBitmap = transformBitmap(
+            sourceBitmap = sourceBitmap,
+            targetWidth = targetWidth,
+            targetHeight = targetHeight,
+            fitMode = fitMode
+        )
+
+        if (preparedBitmap !== sourceBitmap && !sourceBitmap.isRecycled) {
+            sourceBitmap.recycle()
+        }
+
+        return preparedBitmap
+    }
+
+    private fun transformBitmap(
+        sourceBitmap: Bitmap,
+        targetWidth: Int,
+        targetHeight: Int,
+        fitMode: String
+    ): Bitmap {
+        val sourceWidth = sourceBitmap.width.toFloat()
+        val sourceHeight = sourceBitmap.height.toFloat()
+
+        val outputBitmap = Bitmap.createBitmap(
+            targetWidth,
+            targetHeight,
+            Bitmap.Config.ARGB_8888
+        )
+
+        val canvas = Canvas(outputBitmap)
+
+       val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.FILTER_BITMAP_FLAG or
+                Paint.DITHER_FLAG
+        )
+
+        when (fitMode) {
+            "Stretch" -> {
+                val destination = RectF(
+                    0f,
+                    0f,
+                    targetWidth.toFloat(),
+                    targetHeight.toFloat()
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Fit" -> {
+                canvas.drawColor(Color.BLACK)
+
+                val scale = min(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+               val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Center" -> {
+                canvas.drawColor(Color.BLACK)
+
+                // Preserve the image's decoded size unless it is too large
+                // to fit on the display.
+                val scale = min(
+                    1f,
+                    min(
+                        targetWidth / sourceWidth,
+                        targetHeight / sourceHeight
+                    )
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Fill" -> {
+                val scale = max(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            else -> {
+                // Unknown values safely fall back to Fill.
+                val scale = max(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+        }
+
+        return outputBitmap
     }
 
     private fun calculateInSampleSize(
@@ -171,7 +367,7 @@ class MainActivity : FlutterActivity() {
             val halfWidth = imageWidth / 2
 
             while (
-                halfHeight / inSampleSize >= targetHeight ||
+                halfHeight / inSampleSize >= targetHeight &&
                 halfWidth / inSampleSize >= targetWidth
             ) {
                 inSampleSize *= 2

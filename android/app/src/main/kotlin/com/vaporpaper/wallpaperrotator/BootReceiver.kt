@@ -24,6 +24,9 @@ class BootReceiver : BroadcastReceiver() {
         val wallpaperMode =
             prefs.getString("flutter.wallpaperMode", "Home Only")
                 ?: "Home Only"
+        
+        val fitMode =
+            prefs.getString("flutter.globalFitMode", "Fill") ?: "Fill"
 
         if (!rotationEnabled || folderPath.isBlank()) return
 
@@ -42,6 +45,7 @@ class BootReceiver : BroadcastReceiver() {
             putExtra("folderPath", folderPath)
             putExtra("lockFolderPath", lockFolderPath)
             putExtra("wallpaperMode", wallpaperMode)
+            putExtra("fitMode", fitMode)
             putExtra("intervalSeconds", intervalSeconds)
         }
 

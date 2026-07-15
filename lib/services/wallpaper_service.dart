@@ -98,7 +98,7 @@ class WallpaperService {
     if (Platform.isAndroid) {
       final result = await _androidWallpaperChannel.invokeMethod<String>(
         'setHomeWallpaper',
-        {'path': imagePath, 'mode': wallpaperMode},
+        {'path': imagePath, 'mode': wallpaperMode, 'fitMode': fitMode},
       );
 
       return result ?? 'Android wallpaper set';
@@ -127,6 +127,7 @@ class WallpaperService {
     required String folderPath,
     required int intervalSeconds,
     required String wallpaperMode,
+    required String fitMode,
     String lockFolderPath = '',
   }) async {
     if (!Platform.isAndroid) return;
@@ -137,6 +138,7 @@ class WallpaperService {
           'lockFolderPath': lockFolderPath,
           'intervalSeconds': intervalSeconds,
           'wallpaperMode': wallpaperMode,
+          'fitMode': fitMode,
         });
   }
 

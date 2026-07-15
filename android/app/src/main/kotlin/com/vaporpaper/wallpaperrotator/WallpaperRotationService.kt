@@ -16,6 +16,11 @@ import kotlin.random.Random
 import android.graphics.Bitmap
 import kotlin.math.max
 import android.app.PendingIntent
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import kotlin.math.min
 
 class WallpaperRotationService : Service() {
 
@@ -25,6 +30,7 @@ class WallpaperRotationService : Service() {
     private var lockFolderPath: String? = null
     private var intervalSeconds: Int = 30
     private var wallpaperMode: String = "Home Only"
+    private var fitMode: String = "Fill"
 
     companion object {
         const val CHANNEL_ID = "wallpaper_rotation_channel"
@@ -59,6 +65,7 @@ class WallpaperRotationService : Service() {
         lockFolderPath = intent?.getStringExtra("lockFolderPath")
         intervalSeconds = intent?.getIntExtra("intervalSeconds", 30) ?: 30
         wallpaperMode = intent?.getStringExtra("wallpaperMode") ?: "Home Only"
+        fitMode = intent?.getStringExtra("fitMode") ?: "Fill"
 
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
@@ -166,7 +173,8 @@ class WallpaperRotationService : Service() {
     }
 
     private fun applyWallpaperFile(file: File, flags: Int) {
-        val bitmap = decodeBitmapForWallpaper(file.absolutePath) ?: return
+        val bitmap =
+            prepareBitmapForWallpaper(file.absolutePath, fitMode) ?: return
         val wallpaperManager = WallpaperManager.getInstance(applicationContext)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -252,17 +260,28 @@ class WallpaperRotationService : Service() {
             .apply()
     }
 
-    private fun decodeBitmapForWallpaper(path: String): Bitmap? {
+    private fun prepareBitmapForWallpaper(
+        path: String,
+        fitMode: String
+    ): Bitmap? {
         val displayMetrics = resources.displayMetrics
 
         val targetWidth = displayMetrics.widthPixels
         val targetHeight = displayMetrics.heightPixels
+
+        if (targetWidth <= 0 || targetHeight <= 0) {
+            return null
+        }
 
         val boundsOptions = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
 
         BitmapFactory.decodeFile(path, boundsOptions)
+
+        if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+            return null
+        }
 
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = calculateInSampleSize(
@@ -273,7 +292,183 @@ class WallpaperRotationService : Service() {
             )
         }
 
-        return BitmapFactory.decodeFile(path, decodeOptions)
+        val sourceBitmap =
+            BitmapFactory.decodeFile(path, decodeOptions) ?: return null
+
+        val preparedBitmap = transformBitmap(
+            sourceBitmap = sourceBitmap,
+            targetWidth = targetWidth,
+            targetHeight = targetHeight,
+            fitMode = fitMode
+        )
+
+        if (preparedBitmap !== sourceBitmap && !sourceBitmap.isRecycled) {
+            sourceBitmap.recycle()
+        }
+
+        return preparedBitmap
+    }
+
+    private fun transformBitmap(
+        sourceBitmap: Bitmap,
+        targetWidth: Int,
+        targetHeight: Int,
+        fitMode: String
+    ): Bitmap {
+        val sourceWidth = sourceBitmap.width.toFloat()
+        val sourceHeight = sourceBitmap.height.toFloat()
+
+        val outputBitmap = Bitmap.createBitmap(
+            targetWidth,
+            targetHeight,
+            Bitmap.Config.ARGB_8888
+        )
+
+        val canvas = Canvas(outputBitmap)
+
+       val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.FILTER_BITMAP_FLAG or
+                Paint.DITHER_FLAG
+        )
+
+        when (fitMode) {
+            "Stretch" -> {
+                val destination = RectF(
+                    0f,
+                    0f,
+                    targetWidth.toFloat(),
+                    targetHeight.toFloat()
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Fit" -> {
+                canvas.drawColor(Color.BLACK)
+
+                val scale = min(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+               val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Center" -> {
+                canvas.drawColor(Color.BLACK)
+
+                // Preserve the image's decoded size unless it is too large
+                // to fit on the display.
+                val scale = min(
+                    1f,
+                    min(
+                        targetWidth / sourceWidth,
+                        targetHeight / sourceHeight
+                    )
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            "Fill" -> {
+                val scale = max(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+
+            else -> {
+                // Unknown values safely fall back to Fill.
+                val scale = max(
+                    targetWidth / sourceWidth,
+                    targetHeight / sourceHeight
+                )
+
+                val scaledWidth = sourceWidth * scale
+                val scaledHeight = sourceHeight * scale
+
+                val left = (targetWidth - scaledWidth) / 2f
+                val top = (targetHeight - scaledHeight) / 2f
+
+                val destination = RectF(
+                    left,
+                    top,
+                    left + scaledWidth,
+                    top + scaledHeight
+                )
+
+                canvas.drawBitmap(
+                    sourceBitmap,
+                    null,
+                    destination,
+                    paint
+                )
+            }
+        }
+
+        return outputBitmap
     }
 
     private fun calculateInSampleSize(
@@ -293,7 +488,7 @@ class WallpaperRotationService : Service() {
             val halfWidth = imageWidth / 2
 
             while (
-                halfHeight / inSampleSize >= targetHeight ||
+                halfHeight / inSampleSize >= targetHeight &&
                 halfWidth / inSampleSize >= targetWidth
             ) {
                 inSampleSize *= 2

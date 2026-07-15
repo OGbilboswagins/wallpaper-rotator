@@ -232,6 +232,17 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen>
     await restartRotationServiceIfNeeded();
   }
 
+  Future<void> updateFitMode(WallpaperFitMode? value) async {
+    if (value == null) return;
+
+    setState(() {
+      settings = settings.copyWith(fitMode: value);
+    });
+
+    await persistSettings();
+    await restartRotationServiceIfNeeded();
+  }
+
   Future<void> loadSettings() async {
     final loadedSettings = await AndroidSettingsStore.load();
     final serviceRunning = await WallpaperService.isAndroidRotationRunning();
@@ -319,6 +330,12 @@ class _AndroidHomeScreenState extends State<AndroidHomeScreen>
           ),
           const SizedBox(height: 16),
           ...buildFolderCards(),
+          const SizedBox(height: 16),
+          _WallpaperFitCard(
+            fitMode: settings.fitMode,
+            fitModes: WallpaperFitMode.values,
+            onFitModeChanged: updateFitMode,
+          ),
           const SizedBox(height: 16),
           _RotationCard(
             rotationEnabled: settings.rotationEnabled,
@@ -497,6 +514,45 @@ class _FolderCard extends StatelessWidget {
               child: Text(hasFolder ? 'Change Folder' : 'Choose Folder'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WallpaperFitCard extends StatelessWidget {
+  const _WallpaperFitCard({
+    required this.fitMode,
+    required this.fitModes,
+    required this.onFitModeChanged,
+  });
+
+  final WallpaperFitMode fitMode;
+  final List<WallpaperFitMode> fitModes;
+  final ValueChanged<WallpaperFitMode?> onFitModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: DropdownButtonFormField<WallpaperFitMode>(
+          initialValue: fitMode,
+          decoration: const InputDecoration(
+            labelText: 'Wallpaper Fit',
+            helperText: 'Controls how images fill the screen',
+          ),
+          items: fitModes.map((value) {
+            final label = value == WallpaperFitMode.fill
+                ? '${value.label} - Recommended'
+                : value.label;
+
+            return DropdownMenuItem<WallpaperFitMode>(
+              value: value,
+              child: Text(label),
+            );
+          }).toList(),
+          onChanged: onFitModeChanged,
         ),
       ),
     );
