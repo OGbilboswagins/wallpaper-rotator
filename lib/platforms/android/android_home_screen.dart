@@ -467,7 +467,7 @@ class _FolderCard extends StatelessWidget {
       case FolderValidationState.missing:
         return 'Folder no longer exists';
       case FolderValidationState.empty:
-        return 'No supported images found';
+        return 'Image count unavailable';
       case FolderValidationState.valid:
         return '';
     }
@@ -506,7 +506,7 @@ class _FolderCard extends StatelessWidget {
             ],
             if (hasFolder && !hasWarning) ...[
               const SizedBox(height: 8),
-              Text('Images Found: $imageCount'),
+              Text('Images: $imageCount'),
             ],
             const SizedBox(height: 14),
             OutlinedButton(

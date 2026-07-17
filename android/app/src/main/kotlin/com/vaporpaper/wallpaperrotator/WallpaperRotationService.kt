@@ -102,7 +102,24 @@ class WallpaperRotationService : Service() {
                 Notification.Builder(this)
             }
 
-        val stopIntent = Intent(this, WallpaperRotationService::class.java).apply {
+        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+            flags =
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val openAppPendingIntent = PendingIntent.getActivity(
+            this,
+            1000,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopIntent = Intent(
+            this,
+            WallpaperRotationService::class.java
+        ).apply {
             action = ACTION_STOP
         }
 
@@ -110,10 +127,14 @@ class WallpaperRotationService : Service() {
             this,
             1001,
             stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
         )
 
-        val shuffleIntent = Intent(this, WallpaperRotationService::class.java).apply {
+        val shuffleIntent = Intent(
+            this,
+            WallpaperRotationService::class.java
+        ).apply {
             action = ACTION_SHUFFLE
         }
 
@@ -121,13 +142,16 @@ class WallpaperRotationService : Service() {
             this,
             1002,
             shuffleIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
         )
 
         return builder
             .setContentTitle("Wallpaper Rotator")
             .setContentText("Mode: $wallpaperMode")
             .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(openAppPendingIntent)
+            .setOngoing(true)
             .addAction(
                 android.R.drawable.ic_menu_rotate,
                 "Shuffle",

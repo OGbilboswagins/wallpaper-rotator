@@ -30,17 +30,21 @@ class BillingService {
 
     if (!isAvailable) return;
 
-    _purchaseSubscription = _iap.purchaseStream.listen(
+    _purchaseSubscription ??= _iap.purchaseStream.listen(
       _handlePurchases,
       onDone: () {
         _purchaseSubscription?.cancel();
+        _purchaseSubscription = null;
       },
-      onError: (error) {
-        // We will improve this later.
+      onError: (Object error) {
+        // Add logging or user-facing handling later.
       },
     );
 
     await loadProducts();
+
+    // Ask Google Play to return previously owned non-consumable purchases.
+    await _iap.restorePurchases();
   }
 
   Future<void> loadProducts() async {
@@ -52,6 +56,13 @@ class BillingService {
   }
 
   Future<void> buyPro() async {
+    if (!Platform.isAndroid || !isAvailable) return;
+
+    // Restore first in case this account already owns Pro.
+    await _iap.restorePurchases();
+
+    if (isPro) return;
+
     final product = proProduct;
     if (product == null) return;
 
@@ -65,9 +76,7 @@ class BillingService {
     await _iap.restorePurchases();
   }
 
-  Future<void> _handlePurchases(
-    List<PurchaseDetails> purchases,
-  ) async {
+  Future<void> _handlePurchases(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       if (purchase.productID != proProductId) continue;
 

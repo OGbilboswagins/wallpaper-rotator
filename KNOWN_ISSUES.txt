@@ -58,3 +58,34 @@ Discovered during closed-testing preparation.
 
 
 ------------------------------------------------------------------------------
+
+Wallpaper Rotator v2.0 RC
+
+Known Issues
+
+#3
+Title:
+The notification title doesn't go to the app when tapped.
+
+Status:
+Broken
+
+Priority:
+Medium
+
+Steps:
+1. Tap notification
+2. Nothing happens.
+
+Expected:
+The app opens
+
+Actual:
+Nothing happens.
+
+Notes:
+Discovered during closed-testing preparation.
+
+
+------------------------------------------------------------------------------
+
